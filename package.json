@@ -1,0 +1,22 @@
+{
+  "name": "loclplyr",
+  "version": "1.0.0",
+  "description": "Local video player",
+  "main": "src/main.ts",
+  "type": "module",
+  "author": "Armando",
+  "scripts": {
+    "build": "./build.sh release",
+    "dev": "dirwatch -watch src -serve dist -run 'sh build.sh'",
+    "tsc": "tsc"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.57.0",
+    "jsx": "https://github.com/Stuff7/jsx/releases/download/11735811545/jsx-1.0.0.tgz",
+    "sass": "^1.80.6",
+    "typescript": "^5.4.5"
+  }
+}

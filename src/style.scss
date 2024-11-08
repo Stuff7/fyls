@@ -1,0 +1,290 @@
+@use "./font.scss";
+
+@include font.load-font($file-prefix: "icon", $font-type: "woff2", $italic: false);
+@include font.load-font($file-prefix: "JetBrainsMono", $font-family: "JetBrains Mono", $font-weight: 100 800, $italic: true);
+
+:root {
+  --color-bg: linear-gradient(to bottom right, #081010, #2f0f2f, #091111 120%);
+  --color-dark-2: #141414;
+  --color-dark: #222;
+  --color-light: #ddd;
+  --color-light-2: #fff6;
+  --color-light-3: #fff4;
+  --color-accent: #ffd400;
+  --color-accent-2: #ffa700;
+  --color-danger: #ff7a7a;
+  --color-danger-2: #ff4a9a;
+  --color-ok: #83cae6;
+  --color-ok-2: #83ca86;
+  --color-disabled: #a5a5a5;
+  --color-disabled-2: #cbcbcb;
+
+  --spacing-sm: 0.2em;
+  --spacing-nm: 0.5em;
+  --spacing-md: 0.75em;
+  --radius-nm: 0.4em;
+
+  --button-fg: var(--color-dark);
+  --button-bg: var(--color-accent);
+  --button-bg-2: var(--color-accent-2);
+}
+
+@mixin scrollbar($color) {
+  scrollbar-width: thin;
+  scrollbar-color: $color #0003;
+  &::-webkit-scrollbar-thumb {
+    background: $color;
+    border-radius: 20px;
+  }
+  &::-webkit-scrollbar-track {
+    background: #0003;
+  }
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+}
+
+*, *::before, *::after {
+  font-family: "JetBrains Mono", "SF Mono", "Roboto Mono", "Menlo", "Consolas", "Liberation Mono", "Courier New", monospace;
+  box-sizing: border-box;
+  line-height: normal;
+
+  @include scrollbar(var(--color-accent));
+}
+
+*::selection {
+  background-color: var(--color-accent);
+  color: var(--color-dark);
+}
+
+body, :root {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  min-height: 100vh;
+  background: var(--color-bg);
+  background-attachment: fixed;
+  color: var(--color-light);
+}
+
+main {
+  isolation: isolate;
+  display: grid;
+  height: 100vh;
+  align-items: start;
+  transition: grid-template-columns 300ms;
+  overflow-x: hidden;
+  padding: var(--spacing-nm);
+}
+
+em {
+  font-style: normal;
+  font-size: 0.9em;
+  font-weight: 300;
+  opacity: 0.9;
+}
+
+strong {
+  font-weight: bold;
+}
+
+input {
+  margin: 0;
+
+  &.g-delegated{
+    background: transparent;
+    border: 0;
+    color: currentColor;
+
+    &:focus {
+      outline: 1px solid transparent;
+    }
+  }
+}
+
+.g-btn {
+  text-decoration: none;
+  text-align: center;
+}
+
+button, select, .g-btn {
+  cursor: pointer;
+  padding: var(--spacing-nm);
+  border: 0;
+  border-radius: var(--radius-nm);
+  font-weight: 500;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+
+    &:active {
+      pointer-events: none;
+    }
+  }
+
+  &.g-border {
+    background: transparent;
+    color: var(--button-bg);
+    border: 1px solid currentColor;
+
+    &:hover {
+      color: var(--button-bg-2);
+    }
+
+    &:active, &:focus {
+      color: var(--button-fg-2);
+    }
+
+    &:disabled {
+      color: var(--color-disabled);
+    }
+  }
+
+  &:not(.g-border) {
+    background: linear-gradient(to top right, var(--button-bg) 1%, var(--button-bg-2));
+    color: var(--button-fg);
+
+    &:hover {
+      background: var(--button-bg-2);
+    }
+
+    &:active, &:focus {
+      background: var(--button-bg);
+    }
+
+    &:disabled {
+      background: linear-gradient(to top right, var(--color-disabled) 1%, var(--color-disabled-2));
+    }
+  }
+
+  &.g-transparent {
+    background: transparent;
+    color: var(--button-bg);
+
+    &:hover {
+      background: var(--button-bg);
+      color: var(--button-fg);
+    }
+
+    &:active, &:focus {
+      background: linear-gradient(to top right, var(--button-bg) 1%, var(--button-bg-2));
+      color: var(--button-fg);
+    }
+
+    &:disabled {
+      background: linear-gradient(to top right, var(--color-disabled) 1%, var(--color-disabled-2));
+    }
+  }
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+}
+
+i, i::before, i::after {
+  font-family: icon;
+  font-style: normal;
+}
+
+.g-divider {
+  border-radius: var(--radius-nm);
+
+  &:not(.g-horizontal) {
+    height: 100%;
+    border-right: 2px solid var(--color-light-3);
+  }
+
+  &.g-horizontal {
+    width: 100%;
+    border-top: 2px solid var(--color-light-3);
+  }
+}
+
+.g-icon-btn {
+  width: 2em;
+  height: 2em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.g-active-hidden {
+  position: absolute;
+  left: -100%;
+  top: -100%;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  z-index: -1;
+}
+
+.g-rows {
+  display: grid;
+  grid-auto-flow: row;
+}
+
+[data-layer] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2;
+
+  &:not([data-layer=tooltips]) > * {
+    pointer-events: all;
+  }
+}
+
+.Input {
+  --input-bg: var(--color-dark-2);
+  display: grid;
+  align-items: center;
+  gap: var(--spacing-nm);
+  border-radius: var(--radius-nm);
+  color: var(--color-light);
+  border: 1px dashed transparent;
+  padding: var(--spacing-nm) calc(var(--spacing-nm)*1.5);
+  position: relative;
+
+  transition: background 250ms, color 250ms, padding 250ms, border 250ms;
+
+  input::placeholder {
+    opacity: 0;
+  }
+
+  > .placeholder {
+    pointer-events: none;
+    opacity: 0.5;
+    position: absolute;
+    translate: 0px 0px;
+    transition: background 250ms, opacity 250ms, translate 250ms;
+  }
+
+  &:hover, &:has(input:focus) {
+    > .input-icn, > .placeholder {
+      opacity: 1.0;
+    }
+  }
+
+  &:has(input:focus) {
+    color: var(--color-accent);
+    padding-inline: 1em;
+    border-color: currentColor;
+    background: var(--input-bg);
+  }
+
+  > input:not(:placeholder-shown), > input:focus {
+    + .placeholder {
+      opacity: 1;
+      translate: 0px -100%;
+      background: var(--input-bg);
+    }
+  }
+}
