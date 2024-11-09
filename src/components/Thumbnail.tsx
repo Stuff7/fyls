@@ -2,6 +2,16 @@ import { watchFn } from "jsx";
 
 // Reusing the same video element reduces RAM usage considerably.
 const video = document.createElement("video");
+video.muted = true;
+video.preload = "metadata";
+video.onloadedmetadata = () => {
+  video.currentTime = Math.floor(video.duration / 2);
+};
+video.onerror = (e) => {
+  console.warn(e);
+  processing = false;
+};
+
 let processing = false;
 
 export default function VideoThumbnail(props: { shown: boolean, path: string }) {
@@ -16,14 +26,8 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
       }
 
       processing = true;
+
       video.src = props.path;
-      video.muted = true;
-      video.preload = "metadata";
-
-      video.onloadedmetadata = () => {
-        video.currentTime = Math.floor(video.duration / 2);
-      };
-
       video.onseeked = () => {
         const ctx = canvas.getContext("2d");
 
@@ -32,6 +36,7 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
           processing = false;
           return;
         }
+
         canvas.width = canvas.parentElement?.offsetWidth || 200;
 
         ctx.fillStyle = "black";
@@ -59,15 +64,8 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
         URL.revokeObjectURL(video.src);
         processing = false;
       };
-
-      video.onerror = (e) => {
-        console.warn(e);
-        processing = false;
-      };
     });
   });
 
-  return (
-    <canvas $if={props.shown} $ref={canvas} height="200px" />
-  );
+  return <canvas $if={props.shown} $ref={canvas} height="200px" />;
 }
