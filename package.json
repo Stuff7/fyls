@@ -15,7 +15,7 @@
     "@typescript-eslint/parser": "^7.13.0",
     "esbuild": "^0.24.0",
     "eslint": "^8.57.0",
-    "jsx": "https://github.com/Stuff7/jsx/releases/download/11735811545/jsx-1.0.0.tgz",
+    "jsx": "https://github.com/Stuff7/jsx/releases/download/11753265701/jsx-1.0.0.tgz",
     "sass": "^1.80.6",
     "typescript": "^5.4.5"
   }

@@ -1,0 +1,38 @@
+.Directory {
+  > .files {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-nm);
+
+    > header {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, max-content);
+
+      > button {
+        grid-template-columns: auto 1fr;
+      }
+    }
+
+    > header > button, > header {
+      display: grid;
+      align-items: center;
+      gap: var(--spacing-nm);
+    }
+
+    > .title {
+      font-size: 1.5rem;
+      grid-column: 2 / -1;
+    }
+
+    > .file {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    > .directory {
+      display: grid;
+      align-items: center;
+    }
+  }
+}

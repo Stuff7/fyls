@@ -1,4 +1,5 @@
 @use "./font.scss";
+@use "./components/Directory.scss";
 
 @include font.load-font($file-prefix: "icon", $font-type: "woff2", $italic: false);
 @include font.load-font($file-prefix: "JetBrainsMono", $font-family: "JetBrains Mono", $font-weight: 100 800, $italic: true);
@@ -69,10 +70,9 @@ body, :root {
 
 main {
   isolation: isolate;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  align-items: start;
-  transition: grid-template-columns 300ms;
   overflow-x: hidden;
   padding: var(--spacing-nm);
 }
@@ -226,6 +226,7 @@ i, i::before, i::after {
 .g-rows {
   display: grid;
   grid-auto-flow: row;
+  gap: var(--spacing-nm);
 }
 
 [data-layer] {
