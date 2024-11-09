@@ -1,68 +1,73 @@
 import { watchFn } from "jsx";
 
+// Reusing the same video element reduces RAM usage considerably.
+const video = document.createElement("video");
+let processing = false;
+
 export default function VideoThumbnail(props: { shown: boolean, path: string }) {
-  let wrapper!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
 
   queueMicrotask(() => {
-    watchFn(() => props.shown, () => {
+    watchFn(() => props.shown, async () => {
       if (!props.shown) { return }
 
-      (new Promise<string>((res, rej) => {
-        const video = document.createElement("video");
-        video.src = props.path;
-        video.muted = true;
-        video.preload = "metadata";
+      while (processing) {
+        await new Promise(res => setTimeout(res, 8));
+      }
 
-        video.addEventListener("loadedmetadata", () => {
-          video.currentTime = Math.min(Math.floor(video.duration / 2), video.duration - 0.1);
-        });
+      processing = true;
+      video.src = props.path;
+      video.muted = true;
+      video.preload = "metadata";
 
-        video.addEventListener("seeked", () => {
-          const ctx = canvas.getContext("2d");
+      video.onloadedmetadata = () => {
+        video.currentTime = Math.floor(video.duration / 2);
+      };
 
-          if (!ctx) {
-            rej("Could not get canvas context");
-            return;
-          }
-          canvas.width = wrapper.offsetWidth;
+      video.onseeked = () => {
+        const ctx = canvas.getContext("2d");
 
-          ctx.fillStyle = "black";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (!ctx) {
+          console.warn("Could not get canvas context");
+          processing = false;
+          return;
+        }
+        canvas.width = canvas.parentElement?.offsetWidth || 200;
 
-          const videoAspect = video.videoWidth / video.videoHeight;
-          const canvasAspect = canvas.width / canvas.height;
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          let drawWidth: number, drawHeight: number;
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const canvasAspect = canvas.width / canvas.height;
 
-          if (videoAspect > canvasAspect) {
-            drawWidth = canvas.width;
-            drawHeight = canvas.width / videoAspect;
-          }
-          else {
-            drawHeight = canvas.height;
-            drawWidth = canvas.height * videoAspect;
-          }
+        let drawWidth: number, drawHeight: number;
 
-          const offsetX = (canvas.width - drawWidth) / 2;
-          const offsetY = (canvas.height - drawHeight) / 2;
+        if (videoAspect > canvasAspect) {
+          drawWidth = canvas.width;
+          drawHeight = canvas.width / videoAspect;
+        }
+        else {
+          drawHeight = canvas.height;
+          drawWidth = canvas.height * videoAspect;
+        }
 
-          ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+        const offsetX = (canvas.width - drawWidth) / 2;
+        const offsetY = (canvas.height - drawHeight) / 2;
 
-          URL.revokeObjectURL(video.src);
-          res("All good");
-        });
+        ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
 
-        video.addEventListener("error", (e) => {
-          rej(e);
-        });
-      }));
+        URL.revokeObjectURL(video.src);
+        processing = false;
+      };
+
+      video.onerror = (e) => {
+        console.warn(e);
+        processing = false;
+      };
     });
   });
 
   return (
-    <div $if={props.shown} $ref={wrapper}>
-      <canvas $ref={canvas} height="200px" />
-    </div>
+    <canvas $if={props.shown} $ref={canvas} height="200px" />
   );
 }
