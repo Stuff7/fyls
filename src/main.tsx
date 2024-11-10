@@ -1,9 +1,11 @@
 import { ref, watch } from "jsx";
 import Directory, { DirInfo, parseFiles } from "./components/Directory";
 import { FILES_KEY, storedRef } from "./utils";
+import Video from "./components/Video";
 
 const [videoPath, setVideoPath] = ref("");
 const [rootPath, setRootPath] = storedRef("rootDir", v => v || "", v => v);
+const [videoOpen, setVideoOpen] = ref(false);
 
 const [rootDir, setRootDir] = ref<DirInfo>((() => {
   const root = { name: "Root", isDir: true, files: [] };
@@ -39,9 +41,6 @@ document.body.append(
       />
       <em class:placeholder><i></i> Root directory</em>
     </label>
-    <div>
-      <video $if={!!videoPath()} $src={videoPath()} controls />
-    </div>
     <button on:click={() => localStorage.removeItem(FILES_KEY)}>Clear</button>
     <h1>{rootPath()}</h1>
     <Directory
@@ -49,7 +48,11 @@ document.body.append(
       dir={currDir()}
       on:navigate={setCurrDir}
       on:root-change={updateRootDir}
-      on:file-select={setVideoPath}
+      on:file-select={path => {
+        setVideoPath(path);
+        setVideoOpen(true);
+      }}
     />
   </main>,
+  <Video src={videoPath()} open={videoOpen()} on:toggle={setVideoOpen} />,
 );

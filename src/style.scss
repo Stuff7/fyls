@@ -1,5 +1,7 @@
 @use "./font.scss";
 @use "./components/Directory.scss";
+@use "./components/Video.scss";
+@use "./components/RangeInput.scss";
 
 @include font.load-font($file-prefix: "icon", $font-type: "woff2", $italic: false);
 @include font.load-font($file-prefix: "JetBrainsMono", $font-family: "JetBrains Mono", $font-weight: 100 800, $italic: true);
