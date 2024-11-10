@@ -130,7 +130,7 @@ export default function Video(props: VideoProps) {
       class:hidden={hide()}
       on:mousemove={showControls}
       g:onkeydown={keyListener}
-      g:onfullscreenchange={e => setFullscreen(e.currentTarget.fullscreenElement === container)}
+      g:onfullscreenchange={() => setFullscreen(document.fullscreenElement === container)}
     >
       <header>
         <strong class:title>{name()} | Q / E to rotate</strong>
