@@ -7,7 +7,8 @@
 @include font.load-font($file-prefix: "JetBrainsMono", $font-family: "JetBrains Mono", $font-weight: 100 800, $italic: true);
 
 :root {
-  --color-bg: linear-gradient(to bottom right, #081010, #2f0f2f, #091111 120%);
+  --color-bg: linear-gradient(to bottom right, #0F4840, #4f2f4f, #091111 120%);
+  --color-dark-3: #14141480;
   --color-dark-2: #141414;
   --color-dark: #222;
   --color-light: #ddd;
@@ -76,7 +77,6 @@ main {
   flex-direction: column;
   height: 100vh;
   overflow-x: hidden;
-  padding: var(--spacing-nm);
 }
 
 em {
@@ -128,7 +128,10 @@ button, select, .g-btn {
   &.g-border {
     background: transparent;
     color: var(--button-bg);
-    border: 1px solid currentColor;
+
+    &:not(&.g-transparent) {
+      border: 1px solid currentColor;
+    }
 
     &:hover {
       color: var(--button-bg-2);
@@ -160,7 +163,7 @@ button, select, .g-btn {
     }
   }
 
-  &.g-transparent {
+  &.g-transparent:not(&.g-border) {
     background: transparent;
     color: var(--button-bg);
 
@@ -267,7 +270,7 @@ i, i::before, i::after {
     opacity: 0.5;
     position: absolute;
     translate: 0px 0px;
-    transition: background 250ms, opacity 250ms, translate 250ms;
+    transition: background 250ms, opacity 250ms, translate 250ms, padding 250ms;
   }
 
   &:hover, &:has(input:focus) {
@@ -283,11 +286,27 @@ i, i::before, i::after {
     background: var(--input-bg);
   }
 
-  > input:not(:placeholder-shown), > input:focus {
-    + .placeholder {
-      opacity: 1;
-      translate: 0px -100%;
-      background: var(--input-bg);
-    }
+  > input:not(:placeholder-shown) + .placeholder, input:focus + .placeholder {
+    opacity: 1;
+    translate: 0px calc(1px - 100%);
+  }
+
+  > input:focus + .placeholder {
+    background: var(--input-bg);
+    border-radius: var(--radius-nm);
+    padding-inline: var(--spacing-nm);
+    border-top: 1px dashed;
+  }
+}
+
+.Home > header {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: var(--spacing-nm);
+  align-items: center;
+  padding: var(--spacing-md);
+
+  > .title {
+    font-size: 2rem;
   }
 }

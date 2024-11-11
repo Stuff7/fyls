@@ -1,6 +1,6 @@
 import { ref, watchFn } from "jsx";
 import RangeInput from "./RangeInput";
-import { clamp, saturateNum, timestamp } from "~/utils";
+import { clamp, saturateNum, storedRef, timestamp } from "~/utils";
 
 type VideoProps = {
   src: string,
@@ -14,13 +14,17 @@ export default function Video(props: VideoProps) {
 
   const [duration, setDuration] = ref(0);
   const [progress, setProgress] = ref(0);
-  const [volume, setVolume] = ref(0);
+  const [volume, setVolume] = storedRef<number>("volume", v => v != null ? JSON.parse(v) : 1, JSON.stringify);
   const [rotation, setRotation] = ref(0);
   const [speed, setSpeed] = ref(0);
+  const [zoom, setZoom] = ref(1);
   const [playing, setPlaying] = ref(false);
+  const [loop, setLoop] = storedRef<boolean>("loop", v => v ? JSON.parse(v) : false, JSON.stringify);
   const [clicked, setClicked] = ref(false);
   const [fullscreen, setFullscreen] = ref(false);
   const [hide, setHide] = ref(false);
+  const [translation, setTranslation] = ref({ x: 0, y: 0 });
+  const [slice, setSlice] = ref({ step: -1, start: 0, end: 0 });
 
   const seekOffset = () => Math.min(duration() / 10, 5);
   const name = () => {
@@ -63,15 +67,71 @@ export default function Video(props: VideoProps) {
   }
 
   function updateVideoStats(this: HTMLVideoElement) {
-    setPlaying(!this.muted);
+    setPlaying(!this.paused);
     setSpeed(this.playbackRate);
-    setVolume(this.volume);
+    setRotation(0);
+    resetZoom();
     setDuration(this.duration);
     setProgress(this.currentTime);
+    this.volume = volume();
+  }
+
+  function updateSpeed(v: number) {
+    setSpeed(v);
+    video.playbackRate = v;
+  }
+
+  function reproduceVideo() {
+    const s = slice();
+    if (s.step === 1 && video.currentTime > s.end) {
+      video.currentTime = s.start;
+    }
+    setProgress(video.currentTime);
+  }
+
+  function setupSlice() {
+    setSlice.byRef(slice => {
+      if (slice.step === -1) {
+        slice.step = 0;
+        slice.start = video.currentTime;
+        return;
+      }
+      else if (slice.step === 1) {
+        slice.step = -1;
+      }
+      else {
+        slice.end = video.currentTime;
+        slice.step = 1;
+      }
+    });
+  }
+
+  let dragging = false;
+  function drag(e: MouseEvent) {
+    if (!dragging) { return }
+    setTranslation.byRef(t => {
+      t.x += e.movementX;
+      t.y += e.movementY;
+    });
+  }
+
+  function wheelZoom(e: WheelEvent) {
+    if (e.deltaY < 0) {
+      setZoom(Math.min(zoom() + 0.1, 20));
+    }
+    else {
+      setZoom(Math.max(zoom() - 0.1, 0.1));
+    }
+  }
+
+  function resetZoom() {
+    setZoom(1);
+    setTranslation.byRef(t => t.x = t.y = 0);
   }
 
   function keyListener(e: KeyboardEvent) {
     showControls();
+    const k = e.key.toLowerCase();
     if (e.key === "," || e.key === ".") { // Next/Prev frame
       if (!video.paused) {
         video.pause();
@@ -94,23 +154,56 @@ export default function Video(props: VideoProps) {
         video.pause();
       }
     }
-    else if (e.key.toLowerCase() === "m") {
+    else if (k === "m") {
       video.muted = !video.muted;
     }
-    else if (e.key.toLowerCase() === "f") {
+    else if (k === "f") {
       toggleFullscreen();
     }
-    else if (e.key.toLowerCase() === "q") {
+    else if (k === "q") {
       setRotation(saturateNum(rotation() - 90, 0, 360));
     }
-    else if (e.key.toLowerCase() === "e") {
+    else if (k === "e") {
       setRotation(saturateNum(rotation() + 90, 0, 360));
+    }
+    else if (k === "z") {
+      resetZoom();
+    }
+    else if (k === "x") {
+      setZoom(Math.max(zoom() - 0.1, 0.1));
+    }
+    else if (k === "c") {
+      setZoom(Math.min(zoom() + 0.1, 20));
+    }
+    else if (k === "w") {
+      setTranslation.byRef(t => t.y += zoom() * 16);
+    }
+    else if (k === "a") {
+      setTranslation.byRef(t => t.x += zoom() * 16);
+    }
+    else if (k === "s") {
+      setTranslation.byRef(t => t.y -= zoom() * 16);
+    }
+    else if (k === "d") {
+      setTranslation.byRef(t => t.x -= zoom() * 16);
     }
     else if (e.key === "ArrowLeft") {
       video.currentTime = Math.max(video.currentTime - seekOffset(), 0);
     }
     else if (e.key === "ArrowRight") {
       video.currentTime = Math.min(video.currentTime + seekOffset(), duration());
+    }
+    else if (e.key === "ArrowDown") {
+      video.volume = Math.max(video.volume - 0.05, 0);
+    }
+    else if (e.key === "ArrowUp") {
+      video.volume = Math.min(video.volume + 0.05, 1);
+    }
+  }
+
+  function disableSpace(e: KeyboardEvent) {
+    if (e.key === " ") {
+      e.preventDefault();
     }
   }
 
@@ -128,7 +221,13 @@ export default function Video(props: VideoProps) {
       class:Video
       class:playing={playing()}
       class:hidden={hide()}
-      on:mousemove={showControls}
+      on:wheel={wheelZoom}
+      on:mousedown={e => e.button === 1 && (dragging = true)}
+      on:mousemove={e => {
+        showControls();
+        drag(e);
+      }}
+      on:mouseup={() => dragging = false}
       g:onkeydown={keyListener}
       g:onfullscreenchange={() => setFullscreen(document.fullscreenElement === container)}
     >
@@ -138,6 +237,7 @@ export default function Video(props: VideoProps) {
           class:g-icon-btn
           class:g-transparent
           on:click={() => props["on:toggle"](!props.open)}
+          on:keydown={disableSpace}
         >
           <i></i>
         </button>
@@ -145,8 +245,10 @@ export default function Video(props: VideoProps) {
       <button
         class:play
         class:g-border
+        class:g-transparent
         on:click={() => video.paused ? video.play() : video.pause()}
-        on:keydown={e => e.preventDefault()}
+        on:dblclick={toggleFullscreen}
+        on:keydown={disableSpace}
       >
         <i $transition:pop={clicked()}>{playing() ? "" : ""}</i>
       </button>
@@ -154,8 +256,9 @@ export default function Video(props: VideoProps) {
         <button
           class:control
           class:g-border
+          class:g-transparent
           on:click={() => video.paused ? video.play() : video.pause()}
-          on:keydown={e => e.preventDefault()}
+          on:keydown={disableSpace}
         >
           <i>{playing() ? "" : ""}</i>
         </button>
@@ -166,46 +269,90 @@ export default function Video(props: VideoProps) {
           step={0.1}
           formatter={timestamp}
           on:change={v => video.currentTime = v}
+          on:keydown={e => e.preventDefault()}
         />
-        <strong>{timestamp(progress())}</strong>
+        <strong><em>{timestamp(progress())}</em>/{timestamp(duration())}</strong>
         <button
           class:control
-          class:g-border
-          style:padding="0"
+          class:g-border={slice().step !== 1}
+          on:click={setupSlice}
+          on:keydown={disableSpace}
+          style:padding-inline="var(--spacing-nm)"
         >
-          <i></i>
+          <strong>{slice().step === -1 ? "A" : timestamp(slice().start)}</strong>
+          /
+          <strong>{slice().step !== 1 ? "B" : timestamp(slice().end)}</strong>
         </button>
-        <RangeInput
-          min={0}
-          max={1}
-          value={speed()}
-          step={0.1}
-          on:change={v => {
-            setSpeed(v);
-            video.playbackRate = v;
-          }}
-        />
-        <strong>{speed().toFixed(1)}</strong>
         <button
           class:control
           class:g-border
-          style:padding="0"
-          on:click={() => video.muted = !video.muted}
+          class:g-transparent
+          on:click={() => setLoop(!loop())}
+          on:keydown={disableSpace}
         >
-          <i>{volumeIcon()}</i>
+          <i>{loop() ? "" : ""}</i>
         </button>
-        <RangeInput
-          min={0}
-          max={1}
-          value={volume()}
-          step={0.01}
-          on:change={v => video.volume = v}
-        />
-        <strong>{Math.round(volume() * 100)}%</strong>
+        <span class:control>
+          <button
+            class:g-border
+            class:g-transparent
+            on:click={resetZoom}
+            on:keydown={disableSpace}
+          >
+            <i></i>
+          </button>
+          <RangeInput
+            min={0.1}
+            max={20}
+            value={zoom()}
+            step={0.1}
+            on:change={v => setZoom(v)}
+            on:keydown={e => e.preventDefault()}
+          />
+          <strong>{zoom().toFixed(1)}</strong>
+        </span>
+        <span class:control>
+          <button
+            class:g-border
+            class:g-transparent
+            on:click={() => updateSpeed(1)}
+            on:keydown={disableSpace}
+          >
+            <i></i>
+          </button>
+          <RangeInput
+            min={0}
+            max={1}
+            value={speed()}
+            step={0.1}
+            on:change={updateSpeed}
+            on:keydown={e => e.preventDefault()}
+          />
+          <strong>{speed().toFixed(1)}</strong>
+        </span>
+        <span class:control>
+          <button
+            class:g-border
+            class:g-transparent
+            on:click={() => video.muted = !video.muted}
+            on:keydown={disableSpace}
+          ><i>{volumeIcon()}</i></button>
+          <RangeInput
+            min={0}
+            max={1}
+            value={volume()}
+            step={0.01}
+            on:change={v => video.volume = v}
+            on:keydown={e => e.preventDefault()}
+          />
+          <strong>{Math.round(volume() * 100)}%</strong>
+        </span>
         <button
           class:control
           class:g-border
+          class:g-transparent
           on:click={toggleFullscreen}
+          on:keydown={disableSpace}
         >
           <i>{fullscreen() ? "" : ""}</i>
         </button>
@@ -213,10 +360,13 @@ export default function Video(props: VideoProps) {
       <video
         $ref={video}
         $src={props.src}
+        $loop={loop()}
         class:horizontal={rotation() === 90 || rotation() === 270}
         style:rotate={`${rotation()}deg`}
+        style:scale={zoom()}
+        style:translate={zoom() > 1 ? `${translation().x}px ${translation().y}px` : null}
         on:loadedmetadata={updateVideoStats}
-        on:timeupdate={e => setProgress(e.currentTarget.currentTime)}
+        on:timeupdate={reproduceVideo}
         on:play={e => setPlaying(!e.currentTarget.paused)}
         on:pause={e => setPlaying(!e.currentTarget.paused)}
         on:volumechange={e => setVolume(e.currentTarget.volume)}

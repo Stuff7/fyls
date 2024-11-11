@@ -67,5 +67,12 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
     });
   });
 
-  return <canvas $if={props.shown} $ref={canvas} height="200px" />;
+  return (
+    <canvas
+      $if={props.shown}
+      $ref={canvas}
+      class:Thumbnail
+      height="200px"
+    />
+  );
 }

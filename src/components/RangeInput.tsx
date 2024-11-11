@@ -6,6 +6,7 @@ type VideoProps = {
   max: number,
   step?: number,
   formatter?: (value: number) => unknown,
+  "on:keydown"?: (e: KeyboardEvent) => void,
   "on:change": (value: number) => void,
 };
 
@@ -33,6 +34,7 @@ export default function RangeInput(props: VideoProps) {
         value={props.value}
         on:input={e => props["on:change"](+e.currentTarget.value)}
         on:mousemove={updateHoverValue}
+        on:keydown={props["on:keydown"]}
       />
       <div
         class:progress

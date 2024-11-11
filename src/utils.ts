@@ -50,3 +50,7 @@ export function saturateNum(n: number, min: number, max: number) {
   }
   return n;
 }
+
+export function navigate(path: string) {
+  location.hash = path ? `#${path}` : "";
+}

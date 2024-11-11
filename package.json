@@ -1,7 +1,7 @@
 {
-  "name": "loclplyr",
+  "name": "fyls",
   "version": "1.0.0",
-  "description": "Local video player",
+  "description": "Local file browser with video player, intended to be ran under the browser's file protocol",
   "main": "src/main.ts",
   "type": "module",
   "author": "Armando",
@@ -15,7 +15,7 @@
     "@typescript-eslint/parser": "^7.13.0",
     "esbuild": "^0.24.0",
     "eslint": "^8.57.0",
-    "jsx": "https://github.com/Stuff7/jsx/releases/download/11762702845/jsx-1.0.0.tgz",
+    "jsx": "https://github.com/Stuff7/jsx/releases/download/11769084802/jsx-1.0.0.tgz",
     "sass": "^1.80.6",
     "typescript": "^5.4.5"
   }

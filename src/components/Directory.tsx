@@ -1,73 +1,94 @@
 import For from "jsx/components/For";
 import Thumbnail from "./Thumbnail";
+import { ref, watchFn } from "jsx";
+import { navigate } from "~/utils";
 
-type FileInfo = { name: string, path: string } & ({
+type FileType = "video" | "image" | "other";
+
+type PathInfo = { name: string, path: string, parent?: DirInfo };
+
+type FileInfo = PathInfo & ({
   isDir: false,
-} | ({
-  isDir: true,
-} & DirInfo));
+  type: FileType,
+} | DirInfo);
 
-export type DirInfo = { name: string, files: FileInfo[], parent?: DirInfo };
+export type DirInfo = PathInfo & { files: FileInfo[], isDir: true };
 
 type DirectoryProps = {
   root: string,
   dir: DirInfo,
   "on:navigate": (file: DirInfo) => void,
   "on:file-select": (path: string) => void,
-  "on:root-change": (paths: string[]) => void,
 };
 
 export default function Directory(props: DirectoryProps) {
-  function readDirectory(this: HTMLInputElement) {
-    if (this.files) {
-      props["on:root-change"](Array.from(this.files!).map(file => file.webkitRelativePath));
+  const root = props.dir as FileInfo;
+  const [currFile, setCurrFile] = ref(findRoute());
+
+  function findRoute() {
+    const files = location.hash.slice(1).split("/");
+    let file: FileInfo | undefined = root;
+
+    for (const name of files) {
+      if (!file?.isDir) { break }
+      file = file.files.find(f => f.name === name);
+      if (!file) { break }
     }
+
+    return file || root;
   }
 
-  function openFile(file: FileInfo) {
+  const isMedia = (file: FileInfo) => !file.isDir && file.type !== "other";
+  const isFile = (file: FileInfo) => !file.isDir && file.type === "other";
+
+  watchFn(currFile, () => {
+    const file = currFile();
+    if (file === props.dir) {
+      return;
+    }
     if (file.isDir) {
       props["on:navigate"](file);
     }
     else {
-      props["on:file-select"](join(props.root, file.path));
+      if (file.parent && file.parent.isDir) {
+        props["on:navigate"](file.parent);
+      }
+      if(isMedia(file)) {
+        props["on:file-select"](join(props.root, file.path));
+      }
     }
-  }
+  });
 
   return (
-    <article class:Directory class:g-rows>
-      <label class:g-btn>
-        <i></i> Select directory
-        <input class:g-active-hidden type="file" webkitdirectory multiple on:change={readDirectory} />
-      </label>
-      <article class:files>
-        <header>
-          <button
-            on:click={() => props.dir.parent && props["on:navigate"](props.dir.parent)}
-            $disabled={!props.dir.parent}
-          >
-            <i></i><strong>{props.dir.parent?.name}</strong>
-          </button>
-          <strong class:title>{props.dir.name}</strong>
-          <em>{props.dir.files.length} files</em>
-        </header>
-        <For each={props.dir.files} do={file => (
-          <div
-            class:file
-            class:directory={file().isDir}
-            class:g-btn={file().isDir}
-            class:g-border
-            on:click={() => openFile(file())}
-          >
-            <Thumbnail
-              shown={!file().isDir}
-              path={join(props.root, file().path)}
-            />
-            <strong>
-              <i $if={file().isDir}></i> {file().name}
-            </strong>
-          </div>
-        )} />
-      </article>
+    <article class:Directory class:g-rows g:onhashchange={() => setCurrFile(findRoute())}>
+      <header>
+        <button
+          on:click={() => props.dir.parent && navigate(props.dir.parent.path)}
+          $disabled={!props.dir.parent}
+        >
+          <i></i><strong>{props.dir.parent?.name || "No parent"}</strong>
+        </button>
+        <strong class:title>{props.dir.name}</strong>
+        <em>{props.dir.files.length} files</em>
+      </header>
+      <For each={props.dir.files} do={file => (
+        <button
+          class:file
+          class:directory={file().isDir}
+          class:unknown={isFile(file())}
+          class:g-btn
+          class:g-border
+          class:g-transparent
+          on:click={() => navigate(file().path)}
+        >
+          <Thumbnail
+            shown={isMedia(file())}
+            path={join(props.root, file().path)}
+          />
+          <i $if={file().isDir || isFile(file())} />
+          <strong>{file().name}</strong>
+        </button>
+      )} />
     </article>
   );
 }
@@ -76,11 +97,24 @@ function join(p1: string, p2: string) {
   return p1 ? `${p1}/${p2}` : p2;
 }
 
+function getFileType(name: string): FileType {
+  const idx = name.lastIndexOf(".");
+  const ext = idx === -1 ? "" : name.slice(idx);
+
+  if (/\.(mp4|mkv|webm|mov|avi|flv|wmv|m4v)$/i.test(ext)) {
+    return "video";
+  }
+  if (/\.(jpe?g|png|gif|bmp|webp|tiff?|svg)$/i.test(ext)) {
+    return "image";
+  }
+  return "other";
+}
+
 export function parseFiles(root: DirInfo, fullPath: string, ...paths: string[]) {
   for (const path of paths) {
     const idx = path.indexOf("/");
     if (idx === -1) {
-      root.files.push({ name: path, path: join(fullPath, path), isDir: false });
+      root.files.push({ name: path, path: join(fullPath, path), type: getFileType(path), parent: root, isDir: false });
       continue;
     }
 
@@ -90,7 +124,7 @@ export function parseFiles(root: DirInfo, fullPath: string, ...paths: string[]) 
       parseFiles(dir, join(fullPath, name), path.slice(idx + 1));
     }
     else {
-      const dir = { name, path: join(fullPath, name), isDir: true, parent: root, files: [] };
+      const dir: FileInfo = { name, path: join(fullPath, name), isDir: true, parent: root, files: [] };
       root.files.push(dir);
       parseFiles(dir, join(fullPath, name), path.slice(idx + 1));
     }
