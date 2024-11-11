@@ -58,7 +58,6 @@ document.body.append(
         <i></i> Select directory
         <input class:g-active-hidden type="file" webkitdirectory multiple on:change={updateRootDir} />
       </label>
-      <button on:click={() => localStorage.removeItem(FILES_KEY)}>Clear</button>
     </header>
     <Directory
       root={rootPath()}
