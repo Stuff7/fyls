@@ -73,6 +73,7 @@ export default function Video(props: VideoProps) {
     resetZoom();
     setDuration(this.duration);
     setProgress(this.currentTime);
+    setSlice.byRef(s => s.step = -1);
     this.volume = volume();
   }
 

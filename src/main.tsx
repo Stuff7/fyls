@@ -25,7 +25,7 @@ function updateRootPath(this: HTMLInputElement) {
 function updateRootDir(this: HTMLInputElement) {
   if (this.files) {
     const paths = Array.from(this.files!).map(file => file.webkitRelativePath);
-    localStorage.setItem("loclplyr__files", JSON.stringify(paths));
+    localStorage.setItem(FILES_KEY, JSON.stringify(paths));
     setRootDir.byRef(dir => {
       dir.files.length = 0;
       parseFiles(dir, "", ...paths);

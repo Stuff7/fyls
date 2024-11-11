@@ -1,6 +1,6 @@
 import { ref, watch } from "jsx";
 
-const createLocalKey = (name: string) => `loclplyr__${name}`;
+const createLocalKey = (name: string) => `fyls__${name}`;
 export const FILES_KEY = createLocalKey("files");
 
 export function storedRef<T>(key: string, deserialize: (v: string | null) => T, serialize: (v: T) => string) {
