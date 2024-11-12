@@ -24,6 +24,10 @@ export function timestamp(seconds: number) {
   return (h ? [h, m, s] : [m, s]).map(n => padNum(n, 2)).join(":");
 }
 
+export function percent(n: number) {
+  return `${Math.round(n * 100)}%`;
+}
+
 export function advanceOneFrame(video: HTMLVideoElement, frameRate = 30) {
   if (!video.paused) {
     video.pause();

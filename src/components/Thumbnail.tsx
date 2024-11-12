@@ -1,4 +1,4 @@
-import { watchFn } from "jsx";
+import { ref, watchFn } from "jsx";
 
 // Reusing the same video element reduces RAM usage considerably.
 const video = document.createElement("video");
@@ -7,15 +7,13 @@ video.preload = "metadata";
 video.onloadedmetadata = () => {
   video.currentTime = Math.floor(video.duration / 2);
 };
-video.onerror = (e) => {
-  console.warn(e);
-  processing = false;
-};
+video.addEventListener("error", () => processing = false);
 
 let processing = false;
 
 export default function VideoThumbnail(props: { shown: boolean, path: string }) {
   let canvas!: HTMLCanvasElement;
+  const [error, setError] = ref("");
 
   queueMicrotask(() => {
     watchFn(() => props.shown, async () => {
@@ -32,8 +30,8 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
         const ctx = canvas.getContext("2d");
 
         if (!ctx) {
-          console.warn("Could not get canvas context");
           processing = false;
+          setError("Could not get canvas context");
           return;
         }
 
@@ -63,16 +61,22 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
 
         URL.revokeObjectURL(video.src);
         processing = false;
+        setError("");
       };
+
+      video.onerror = () => setError("Unsupported format");
     });
   });
 
   return (
-    <canvas
-      $if={props.shown}
-      $ref={canvas}
-      class:Thumbnail
-      height="200px"
-    />
+    <>
+      <canvas
+        $if={props.shown && !error()}
+        $ref={canvas}
+        class:Thumbnail
+        height="200px"
+      />
+      <i $if={props.shown && !!error()} $title={error()}></i>
+    </>
   );
 }

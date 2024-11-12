@@ -55,7 +55,7 @@
 
   > footer {
     display: grid;
-    grid-template-columns: auto 1fr repeat(3, auto) 3.5em 3em 4em auto;
+    grid-template-columns: auto 1fr repeat(3, auto) repeat(3, 4em) auto;
     align-items: center;
     gap: var(--spacing-md);
     background: linear-gradient(to top, #000, #0000);
@@ -78,7 +78,7 @@
         position: absolute;
         rotate: -90deg;
         width: 200%;
-        bottom: 350%;
+        bottom: 390%;
         right: calc(var(--spacing-nm)*-1);
       }
     }

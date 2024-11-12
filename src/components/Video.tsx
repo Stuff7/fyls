@@ -1,6 +1,6 @@
 import { ref, watchFn } from "jsx";
 import RangeInput from "./RangeInput";
-import { clamp, saturateNum, storedRef, timestamp } from "~/utils";
+import { clamp, percent, saturateNum, storedRef, timestamp } from "~/utils";
 
 type VideoProps = {
   src: string,
@@ -118,7 +118,7 @@ export default function Video(props: VideoProps) {
 
   function wheelZoom(e: WheelEvent) {
     if (e.deltaY < 0) {
-      setZoom(Math.min(zoom() + 0.1, 20));
+      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
     }
     else {
       setZoom(Math.max(zoom() - 0.1, 0.1));
@@ -144,7 +144,11 @@ export default function Video(props: VideoProps) {
       setSpeed(video.playbackRate);
     }
     else if (e.key === ">") {
-      video.playbackRate = Math.min(video.playbackRate + 0.1, 1);
+      video.playbackRate = Math.min(video.playbackRate + 0.1, MAX_SPEED);
+      setSpeed(video.playbackRate);
+    }
+    else if (e.key === "?") {
+      video.playbackRate = 1;
       setSpeed(video.playbackRate);
     }
     else if (e.key === " ") {
@@ -174,7 +178,7 @@ export default function Video(props: VideoProps) {
       setZoom(Math.max(zoom() - 0.1, 0.1));
     }
     else if (k === "c") {
-      setZoom(Math.min(zoom() + 0.1, 20));
+      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
     }
     else if (k === "w") {
       setTranslation.byRef(t => t.y += zoom() * 16);
@@ -304,13 +308,13 @@ export default function Video(props: VideoProps) {
           </button>
           <RangeInput
             min={0.1}
-            max={20}
+            max={MAX_ZOOM}
             value={zoom()}
             step={0.1}
             on:change={v => setZoom(v)}
             on:keydown={e => e.preventDefault()}
           />
-          <strong>{zoom().toFixed(1)}</strong>
+          <strong>{percent(zoom())}</strong>
         </span>
         <span class:control>
           <button
@@ -323,13 +327,13 @@ export default function Video(props: VideoProps) {
           </button>
           <RangeInput
             min={0}
-            max={1}
+            max={MAX_SPEED}
             value={speed()}
             step={0.1}
             on:change={updateSpeed}
             on:keydown={e => e.preventDefault()}
           />
-          <strong>{speed().toFixed(1)}</strong>
+          <strong>{percent(speed())}</strong>
         </span>
         <span class:control>
           <button
@@ -346,7 +350,7 @@ export default function Video(props: VideoProps) {
             on:change={v => video.volume = v}
             on:keydown={e => e.preventDefault()}
           />
-          <strong>{Math.round(volume() * 100)}%</strong>
+          <strong>{percent(volume())}</strong>
         </span>
         <button
           class:control
@@ -375,3 +379,6 @@ export default function Video(props: VideoProps) {
     </article>
   );
 }
+
+const MAX_SPEED = 5;
+const MAX_ZOOM = 20;
