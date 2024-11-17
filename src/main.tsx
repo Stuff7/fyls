@@ -2,10 +2,13 @@ import { ref, watch } from "jsx";
 import Directory, { DirInfo, parseFiles } from "./components/Directory";
 import { FILES_KEY, navigate, storedRef } from "./utils";
 import Video from "./components/Video";
+import Img from "./components/Img";
 
-const [videoPath, setVideoPath] = ref("");
 const [rootPath, setRootPath] = storedRef("rootDir", v => v || "", v => v);
+const [videoPath, setVideoPath] = ref("");
 const [videoOpen, setVideoOpen] = ref(false);
+const [imgPath, setImgPath] = ref("");
+const [imgOpen, setImgOpen] = ref(false);
 
 const [rootDir, setRootDir] = ref<DirInfo>((() => {
   const root: DirInfo = { name: "Root", path: "", isDir: true, files: [] };
@@ -63,11 +66,18 @@ document.body.append(
       root={rootPath()}
       dir={currDir()}
       on:navigate={setCurrDir}
-      on:file-select={path => {
-        setVideoPath(path);
-        setVideoOpen(true);
+      on:file-select={(path, file) => {
+        if (file.type === "video") {
+          setVideoPath(path);
+          setVideoOpen(true);
+        }
+        else if (file.type === "image") {
+          setImgPath(path);
+          setImgOpen(true);
+        }
       }}
     />
   </main>,
   <Video src={videoPath()} open={videoOpen()} on:toggle={setVideoOpen} />,
+  <Img src={imgPath()} open={imgOpen()} on:toggle={setImgOpen} />,
 );

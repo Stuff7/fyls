@@ -1,6 +1,6 @@
 import { ref, watchFn } from "jsx";
 import RangeInput from "./RangeInput";
-import { clamp, percent, saturateNum, storedRef, timestamp } from "~/utils";
+import { clamp, percent, basicControls, storedRef, timestamp, getNameFromPath, MAX_ZOOM } from "~/utils";
 
 type VideoProps = {
   src: string,
@@ -12,29 +12,36 @@ export default function Video(props: VideoProps) {
   let container!: HTMLElement;
   let video!: HTMLVideoElement;
 
+  const {
+    hidden,
+    wheelZoom,
+    showControls,
+    startDrag,
+    drag,
+    endDrag,
+    controlsListener,
+    toggleFullscreen,
+    updateFullscreen,
+    resetZoom,
+    zoom,
+    setZoom,
+    fullscreen,
+    isHorizontal,
+    rotationDeg,
+    translationPx,
+    setRotation,
+  } = basicControls(() => container);
+
   const [duration, setDuration] = ref(0);
   const [progress, setProgress] = ref(0);
   const [volume, setVolume] = storedRef<number>("volume", v => v != null ? JSON.parse(v) : 1, JSON.stringify);
-  const [rotation, setRotation] = ref(0);
   const [speed, setSpeed] = ref(0);
-  const [zoom, setZoom] = ref(1);
   const [playing, setPlaying] = ref(false);
   const [loop, setLoop] = storedRef<boolean>("loop", v => v ? JSON.parse(v) : false, JSON.stringify);
   const [clicked, setClicked] = ref(false);
-  const [fullscreen, setFullscreen] = ref(false);
-  const [hide, setHide] = ref(false);
-  const [translation, setTranslation] = ref({ x: 0, y: 0 });
   const [slice, setSlice] = ref({ step: -1, start: 0, end: 0 });
 
   const seekOffset = () => Math.min(duration() / 10, 5);
-  const name = () => {
-    const idx = props.src.lastIndexOf("/");
-    if (idx === -1) {
-      return props.src;
-    }
-
-    return props.src.slice(idx + 1);
-  };
 
   function volumeIcon() {
     volume();
@@ -48,22 +55,6 @@ export default function Video(props: VideoProps) {
       return "";
     }
     return "";
-  }
-
-  let hideTimeout = 0;
-  function showControls() {
-    setHide(false);
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(() => setHide(true), 1e3);
-  }
-
-  function toggleFullscreen() {
-    if (document.fullscreenElement === container) {
-      document.exitFullscreen();
-    }
-    else {
-      container.requestFullscreen();
-    }
   }
 
   function updateVideoStats(this: HTMLVideoElement) {
@@ -107,31 +98,9 @@ export default function Video(props: VideoProps) {
     });
   }
 
-  let dragging = false;
-  function drag(e: MouseEvent) {
-    if (!dragging) { return }
-    setTranslation.byRef(t => {
-      t.x += e.movementX;
-      t.y += e.movementY;
-    });
-  }
-
-  function wheelZoom(e: WheelEvent) {
-    if (e.deltaY < 0) {
-      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
-    }
-    else {
-      setZoom(Math.max(zoom() - 0.1, 0.1));
-    }
-  }
-
-  function resetZoom() {
-    setZoom(1);
-    setTranslation.byRef(t => t.x = t.y = 0);
-  }
-
   function keyListener(e: KeyboardEvent) {
-    showControls();
+    if (!controlsListener(e)) { return }
+
     const k = e.key.toLowerCase();
     if (e.key === "," || e.key === ".") { // Next/Prev frame
       if (!video.paused) {
@@ -161,36 +130,6 @@ export default function Video(props: VideoProps) {
     }
     else if (k === "m") {
       video.muted = !video.muted;
-    }
-    else if (k === "f") {
-      toggleFullscreen();
-    }
-    else if (k === "q") {
-      setRotation(saturateNum(rotation() - 90, 0, 360));
-    }
-    else if (k === "e") {
-      setRotation(saturateNum(rotation() + 90, 0, 360));
-    }
-    else if (k === "z") {
-      resetZoom();
-    }
-    else if (k === "x") {
-      setZoom(Math.max(zoom() - 0.1, 0.1));
-    }
-    else if (k === "c") {
-      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
-    }
-    else if (k === "w") {
-      setTranslation.byRef(t => t.y += zoom() * 16);
-    }
-    else if (k === "a") {
-      setTranslation.byRef(t => t.x += zoom() * 16);
-    }
-    else if (k === "s") {
-      setTranslation.byRef(t => t.y -= zoom() * 16);
-    }
-    else if (k === "d") {
-      setTranslation.byRef(t => t.x -= zoom() * 16);
     }
     else if (e.key === "ArrowLeft") {
       video.currentTime = Math.max(video.currentTime - seekOffset(), 0);
@@ -223,21 +162,22 @@ export default function Video(props: VideoProps) {
     <article
       $ref={container}
       $if={props.open}
+      class:Media
       class:Video
       class:playing={playing()}
-      class:hidden={hide()}
+      class:hidden={hidden()}
       on:wheel={wheelZoom}
-      on:mousedown={e => e.button === 1 && (dragging = true)}
+      on:mousedown={startDrag}
       on:mousemove={e => {
         showControls();
         drag(e);
       }}
-      on:mouseup={() => dragging = false}
+      on:mouseup={endDrag}
       g:onkeydown={keyListener}
-      g:onfullscreenchange={() => setFullscreen(document.fullscreenElement === container)}
+      g:onfullscreenchange={updateFullscreen}
     >
       <header>
-        <strong class:title>{name()} | Q / E to rotate</strong>
+        <strong class:title>{getNameFromPath(props.src)} | Q / E to rotate</strong>
         <button
           class:g-icon-btn
           class:g-transparent
@@ -363,13 +303,14 @@ export default function Video(props: VideoProps) {
         </button>
       </footer>
       <video
+        class:src
         $ref={video}
         $src={props.src}
         $loop={loop()}
-        class:horizontal={rotation() === 90 || rotation() === 270}
-        style:rotate={`${rotation()}deg`}
+        class:horizontal={isHorizontal()}
+        style:rotate={rotationDeg()}
         style:scale={zoom()}
-        style:translate={zoom() > 1 ? `${translation().x}px ${translation().y}px` : null}
+        style:translate={translationPx()}
         on:loadedmetadata={updateVideoStats}
         on:timeupdate={reproduceVideo}
         on:play={e => setPlaying(!e.currentTarget.paused)}
@@ -381,4 +322,3 @@ export default function Video(props: VideoProps) {
 }
 
 const MAX_SPEED = 5;
-const MAX_ZOOM = 20;

@@ -1,4 +1,5 @@
 import { ref, watchFn } from "jsx";
+import { FileType } from "./Directory";
 
 // Reusing the same video element reduces RAM usage considerably.
 const video = document.createElement("video");
@@ -11,7 +12,13 @@ video.addEventListener("error", () => processing = false);
 
 let processing = false;
 
-export default function VideoThumbnail(props: { shown: boolean, path: string }) {
+type ThumbnailProps = {
+  shown: boolean,
+  path: string,
+  type: FileType,
+};
+
+export default function VideoThumbnail(props: ThumbnailProps) {
   let canvas!: HTMLCanvasElement;
   const [error, setError] = ref("");
 
@@ -70,13 +77,19 @@ export default function VideoThumbnail(props: { shown: boolean, path: string }) 
 
   return (
     <>
+      <img
+        $if={props.shown && props.type === "image"}
+        $src={props.path}
+        style:height="200px"
+        style:object-fit="contain"
+      />
       <canvas
         $if={props.shown && !error()}
         $ref={canvas}
         class:Thumbnail
         height="200px"
       />
-      <i $if={props.shown && !!error()} $title={error()}></i>
+      <i $if={props.shown && props.type !== "image" && !!error()} $title={error()}></i>
     </>
   );
 }

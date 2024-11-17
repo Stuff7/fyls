@@ -3,22 +3,23 @@ import Thumbnail from "./Thumbnail";
 import { ref, watchFn } from "jsx";
 import { navigate } from "~/utils";
 
-type FileType = "video" | "image" | "other";
+export type FileType = "video" | "image" | "other";
 
 type PathInfo = { name: string, path: string, parent?: DirInfo };
 
-type FileInfo = PathInfo & ({
-  isDir: false,
-  type: FileType,
-} | DirInfo);
+type FileInfo = NonDirInfo | DirInfo;
 
+export type NonDirInfo = PathInfo & {
+    isDir: false;
+    type: FileType;
+};
 export type DirInfo = PathInfo & { files: FileInfo[], isDir: true };
 
 type DirectoryProps = {
   root: string,
   dir: DirInfo,
   "on:navigate": (file: DirInfo) => void,
-  "on:file-select": (path: string) => void,
+  "on:file-select": (path: string, file: NonDirInfo) => void,
 };
 
 export default function Directory(props: DirectoryProps) {
@@ -40,6 +41,7 @@ export default function Directory(props: DirectoryProps) {
 
   const isMedia = (file: FileInfo) => !file.isDir && file.type !== "other";
   const isFile = (file: FileInfo) => !file.isDir && file.type === "other";
+  const fileType = (file: FileInfo) => file.isDir ? "other" : file.type;
 
   watchFn(currFile, () => {
     const file = currFile();
@@ -54,7 +56,7 @@ export default function Directory(props: DirectoryProps) {
         props["on:navigate"](file.parent);
       }
       if(isMedia(file)) {
-        props["on:file-select"](join(props.root, file.path));
+        props["on:file-select"](join(props.root, file.path), file);
       }
     }
   });
@@ -84,6 +86,7 @@ export default function Directory(props: DirectoryProps) {
           <Thumbnail
             shown={isMedia(file())}
             path={join(props.root, file().path)}
+            type={fileType(file())}
           />
           <i $if={file().isDir || isFile(file())} />
           <strong>{file().name}</strong>
