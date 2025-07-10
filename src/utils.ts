@@ -3,7 +3,11 @@ import { ref, watch } from "jsx";
 const createLocalKey = (name: string) => `fyls__${name}`;
 export const FILES_KEY = createLocalKey("files");
 
-export function storedRef<T>(key: string, deserialize: (v: string | null) => T, serialize: (v: T) => string) {
+export function storedRef<T>(
+  key: string,
+  deserialize: (v: string | null) => T,
+  serialize: (v: T) => string,
+) {
   const localKey = createLocalKey(key);
   const ret = ref(deserialize(localStorage.getItem(localKey)));
   watch(() => localStorage.setItem(localKey, serialize(ret[0]())));
@@ -21,7 +25,7 @@ export function timestamp(seconds: number) {
   const h = Math.floor(m / 60);
   m -= h * 60;
 
-  return (h ? [h, m, s] : [m, s]).map(n => padNum(n, 2)).join(":");
+  return (h ? [h, m, s] : [m, s]).map((n) => padNum(n, 2)).join(":");
 }
 
 export function percent(n: number) {
@@ -56,7 +60,7 @@ export function saturateNum(n: number, min: number, max: number) {
 }
 
 export function navigate(path: string) {
-  location.hash = path ? `#${path}` : "";
+  location.hash = path ? encodeURI(`#${path}`) : "";
 }
 
 export function getNameFromPath(path: string) {
@@ -71,15 +75,18 @@ export function getNameFromPath(path: string) {
 export function toggleFullscreen(elem: Element) {
   if (document.fullscreenElement === elem) {
     document.exitFullscreen();
-  }
-  else {
+  } else {
     elem.requestFullscreen();
   }
 }
 
-export function withDelayedCleanup(action: () => void, cleanup: () => void, delay = 1e3) {
+export function withDelayedCleanup(
+  action: () => void,
+  cleanup: () => void,
+  delay = 1e3,
+) {
   let hideTimeout = 0;
-  return function() {
+  return () => {
     action();
     clearTimeout(hideTimeout);
     hideTimeout = setTimeout(cleanup, delay);
@@ -94,12 +101,17 @@ export function basicControls(container: () => Element) {
   const [translation, setTranslation] = ref({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = ref(false);
 
-  const showControls = withDelayedCleanup(() => setHidden(false), () => setHidden(true));
+  const showControls = withDelayedCleanup(
+    () => setHidden(false),
+    () => setHidden(true),
+  );
 
   let dragging = false;
   function drag(e: MouseEvent) {
-    if (!dragging) { return }
-    setTranslation.byRef(t => {
+    if (!dragging) {
+      return;
+    }
+    setTranslation.byRef((t) => {
       t.x += e.movementX;
       t.y += e.movementY;
     });
@@ -108,15 +120,14 @@ export function basicControls(container: () => Element) {
   function wheelZoom(e: WheelEvent) {
     if (e.deltaY < 0) {
       setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
-    }
-    else {
+    } else {
       setZoom(Math.max(zoom() - 0.1, 0.1));
     }
   }
 
   function resetZoom() {
     setZoom(1);
-    setTranslation.byRef(t => t.x = t.y = 0);
+    setTranslation.byRef((t) => (t.x = t.y = 0));
   }
 
   function controlsListener(e: KeyboardEvent) {
@@ -124,35 +135,25 @@ export function basicControls(container: () => Element) {
     const k = e.key.toLowerCase();
     if (k === "f") {
       toggleFullscreen(container());
-    }
-    else if (k === "q") {
+    } else if (k === "q") {
       setRotation(saturateNum(rotation() - 90, 0, 360));
-    }
-    else if (k === "e") {
+    } else if (k === "e") {
       setRotation(saturateNum(rotation() + 90, 0, 360));
-    }
-    else if (k === "z") {
+    } else if (k === "z") {
       resetZoom();
-    }
-    else if (k === "x") {
+    } else if (k === "x") {
       setZoom(Math.max(zoom() - 0.1, 0.1));
-    }
-    else if (k === "c") {
+    } else if (k === "c") {
       setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
-    }
-    else if (k === "w") {
-      setTranslation.byRef(t => t.y += zoom() * 16);
-    }
-    else if (k === "a") {
-      setTranslation.byRef(t => t.x += zoom() * 16);
-    }
-    else if (k === "s") {
-      setTranslation.byRef(t => t.y -= zoom() * 16);
-    }
-    else if (k === "d") {
-      setTranslation.byRef(t => t.x -= zoom() * 16);
-    }
-    else {
+    } else if (k === "w") {
+      setTranslation.byRef((t) => (t.y += zoom() * 16));
+    } else if (k === "a") {
+      setTranslation.byRef((t) => (t.x += zoom() * 16));
+    } else if (k === "s") {
+      setTranslation.byRef((t) => (t.y -= zoom() * 16));
+    } else if (k === "d") {
+      setTranslation.byRef((t) => (t.x -= zoom() * 16));
+    } else {
       return true;
     }
   }
@@ -167,17 +168,19 @@ export function basicControls(container: () => Element) {
       }
     },
     drag,
-    endDrag: () => dragging = false,
+    endDrag: () => (dragging = false),
     controlsListener,
     toggleFullscreen: () => toggleFullscreen(container()),
-    updateFullscreen: () => setFullscreen(document.fullscreenElement === container()),
+    updateFullscreen: () =>
+      setFullscreen(document.fullscreenElement === container()),
     resetZoom,
     zoom,
     setZoom,
     fullscreen,
     isHorizontal: () => rotation() === 90 || rotation() === 270,
     rotationDeg: () => `${rotation()}deg`,
-    translationPx: () => zoom() > 1 ? `${translation().x}px ${translation().y}px` : null,
+    translationPx: () =>
+      zoom() > 1 ? `${translation().x}px ${translation().y}px` : null,
     setRotation,
     resetAll: () => {
       setRotation(0);
