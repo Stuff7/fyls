@@ -35,11 +35,23 @@
 </script>
 
 <script lang="ts">
+  import { onDestroy, onMount } from "svelte";
+
   import type { FileType } from "./types";
+  import { timestamp } from "./utils";
 
   const { shown = false, path = "", ftype = "other" as FileType } = $props();
   let canvas = $state<HTMLCanvasElement>();
   let error = $state("");
+  let duration = $state(-1);
+
+  const getMeta = () => {
+    if (video.src !== path) return;
+    duration = video.duration || -2;
+  };
+
+  onMount(() => video.addEventListener("loadedmetadata", getMeta));
+  onDestroy(() => video.removeEventListener("loadedmetadata", getMeta));
 
   $effect(() => {
     if (!shown) return;
@@ -128,9 +140,14 @@
       <canvas
         bind:this={canvas}
         class="max-w-full max-h-full"
+        class:invisible={error}
         height="200"
         width="200"
       ></canvas>
+      <strong
+        class="absolute z-1 bottom-2 right-2 bg-zinc-950/55 rounded-sm px-2 py-1"
+        >{timestamp(duration)}</strong
+      >
     {:else}
       <i
         title={error}

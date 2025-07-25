@@ -22,6 +22,20 @@ export function navigate(path: string) {
   location.hash = path ? encodeURI(`#${path}`) : "";
 }
 
+export function padNum(n: number, len = 2) {
+  return n.toString().padStart(len, "0");
+}
+
+export function timestamp(seconds: number) {
+  let s = seconds / 60;
+  let m = Math.floor(s);
+  s = Math.round((s - m) * 60);
+  const h = Math.floor(m / 60);
+  m -= h * 60;
+
+  return (h ? [h, m, s] : [m, s]).map((n) => padNum(n, 2)).join(":");
+}
+
 export function getFileType(name: string): FileType {
   const idx = name.lastIndexOf(".");
   const ext = idx === -1 ? "" : name.slice(idx);

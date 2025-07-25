@@ -13,6 +13,7 @@
 
   const croot = dir as FileInfo;
   let currFile = $state(findRoute());
+  const getPath = (filepath: string) => encodeURI(join(root, filepath));
 
   function findRoute() {
     const hash = decodeURI(location.hash);
@@ -47,7 +48,7 @@
         dir = file.parent;
       }
       if (isMedia(file)) {
-        onFileSelect(join(root, file.path), file);
+        onFileSelect(getPath(file.path), file);
       }
     }
   });
@@ -66,7 +67,7 @@
     <strong class="title">{dir.name}</strong>
     <em>{dir.files.length} files</em>
   </header>
-  {#each dir.files as file}
+  {#each dir.files as file (file.path)}
     <button
       class:file
       class:directory={file.isDir}
@@ -76,13 +77,13 @@
     >
       <Thumbnail
         shown={isMedia(file)}
-        path={join(root, file.path)}
+        path={getPath(file.path)}
         ftype={fileType(file)}
       />
       {#if file.isDir || isFile(file)}
         <i></i>
       {/if}
-      <strong>{file.name}</strong>
+      <strong class="break-all">{file.name}</strong>
     </button>
   {/each}
 </article>
