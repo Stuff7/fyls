@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+html,
+body {
+  @apply text-sm accent-indigo-500 dark:accent-amber-300 bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50 overflow-hidden! fixed h-dvh w-dvw;
+  background: linear-gradient(to bottom right, #0f4840, #4f2f4f, #091111 120%);
+}
+
+#app {
+  @apply overflow-auto h-dvh w-dvw;
+}
+
+@font-face {
+  font-family: icon;
+  src: url("./fonts/icon/icon.woff2");
+  font-weight: 100 900;
+}
+
+@utility scrollbar-hidden {
+  /* Firefox */
+  scrollbar-width: none;
+  /* IE 10+ */
+  -ms-overflow-style: none;
+  /* WebKit (Chrome, Safari) */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility rounded-square {
+  @apply px-2 rounded-sm h-full aspect-square text-center flex items-center justify-center;
+}
+
+@utility named-input {
+  @apply grid items-center gap-2 rounded-md text-zinc-200 border border-transparent
+         px-4 py-2 relative transition-[background,color,padding,border] duration-200;
+
+  input {
+    @apply outline-none;
+  }
+
+  input::placeholder {
+    @apply opacity-0;
+  }
+
+  > .placeholder {
+    @apply flex gap-2 pointer-events-none opacity-50 absolute
+           transition-[background,opacity,translate,padding] duration-200 translate-none rounded-t-md;
+  }
+
+  &:hover,
+  &:has(input:focus) {
+    > .input-icn,
+    > .placeholder {
+      @apply opacity-100;
+    }
+  }
+
+  &:has(input:focus) {
+    @apply text-amber-300 px-4 border-current;
+  }
+
+  > input:not(:placeholder-shown) + .placeholder,
+  input:focus + .placeholder {
+    @apply -translate-y-5 translate-x-4;
+  }
+
+  > input:focus + .placeholder {
+    @apply px-2 bg-amber-300 text-zinc-900 opacity-100;
+    translate: 4px calc(-8px - 100%);
+  }
+}
+
+@utility explorer {
+  @apply grid gap-4 p-4 pt-0 grid-cols-[repeat(auto-fill,minmax(200px,1fr))];
+
+  > header {
+    @apply grid grid-cols-[repeat(3,max-content)] items-center gap-4 px-6 py-4 bg-zinc-900/50 -mx-4 col-span-full;
+  }
+
+  > header > button {
+    @apply grid grid-cols-[auto_1fr] items-center gap-4;
+  }
+
+  i {
+    @apply leading-none;
+  }
+
+  > .title {
+    @apply text-2xl col-span-2;
+  }
+
+  > .file {
+    @apply overflow-hidden text-ellipsis cursor-pointer flex flex-col justify-between gap-2 p-0;
+
+    > i {
+      @apply text-[12rem];
+    }
+
+    &.unknown > i::after {
+      content: "";
+    }
+
+    > .Thumbnail {
+      @apply rounded-md;
+    }
+  }
+
+  > .directory {
+    @apply flex flex-col justify-between gap-2 p-0;
+
+    > i {
+      @apply text-amber-300;
+
+      &::after {
+        content: "";
+      }
+
+      &:hover::after {
+        content: "";
+      }
+    }
+  }
+}
+
+i,
+[data-icon] {
+  @apply inline-block text-center not-italic;
+  font-family: icon, monospace;
+}
+
+::selection {
+  @apply bg-indigo-500 text-zinc-100;
+  @apply dark:bg-amber-300 dark:text-zinc-800;
+}
+
+.button,
+button,
+select {
+  @apply cursor-pointer;
+}
+
+.outlined,
+.button,
+button:not(.plain),
+select {
+  @apply outline -outline-offset-1;
+  @apply outline-zinc-300;
+  @apply dark:outline-zinc-700;
+}
+
+.button,
+button:not(.plain),
+select {
+  &:not(.compact) {
+    @apply px-4 py-1;
+  }
+
+  &:not(.no-color) {
+    @apply bg-zinc-200 text-zinc-800 hover:bg-indigo-500 active:bg-indigo-900 hover:text-zinc-200 active:text-zinc-200;
+    @apply dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-amber-300 dark:active:bg-amber-100 dark:hover:text-zinc-800 dark:active:text-zinc-800;
+
+    &.selected {
+      @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100;
+    }
+  }
+}
+
+:disabled {
+  @apply opacity-25 cursor-not-allowed;
+}
+
+select {
+  @apply rounded-md py-1 px-3;
+}
+
+button,
+:not(.named-input) > input,
+textarea,
+select {
+  @apply focus:outline focus:outline-indigo-500 dark:focus:outline-amber-300 -outline-offset-1;
+}
+
+:not(.named-input) > input:not([type="color"]),
+textarea {
+  @apply px-2 rounded-xs bg-zinc-50 text-zinc-900 outline-indigo-700 dark:bg-zinc-900 dark:text-zinc-50 dark:outline-amber-200;
+}
+
+:invalid {
+  @apply outline-rose-500!;
+}

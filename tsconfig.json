@@ -1,5 +1,4 @@
 {
-  "extends": "jsx/tsconfig.json",
   "compilerOptions": {
     "module": "ESNext",
     "target": "ESNext",
@@ -11,18 +10,14 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "allowUnusedLabels": true,
-    "outDir": "build",
+    "outDir": "dist",
     "sourceMap": true,
     "noImplicitThis": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"],
+      "~/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "*.d.ts"],
-  "exclude": [
-    "build",
-    "node_modules",
-    "**/node_modules/*"
-  ]
+  "include": ["src/**/*", "*.d.ts", "*.ts"],
+  "exclude": ["dist", "node_modules", "**/node_modules/*"]
 }

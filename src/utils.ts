@@ -1,190 +1,76 @@
-import { ref, watch } from "jsx";
+import type { DirInfo, FileInfo, FileType } from "./types";
 
 const createLocalKey = (name: string) => `fyls__${name}`;
 export const FILES_KEY = createLocalKey("files");
 
-export function storedRef<T>(
+export function localStorageGet<T>(
   key: string,
   deserialize: (v: string | null) => T,
-  serialize: (v: T) => string,
 ) {
-  const localKey = createLocalKey(key);
-  const ret = ref(deserialize(localStorage.getItem(localKey)));
-  watch(() => localStorage.setItem(localKey, serialize(ret[0]())));
-  return ret;
+  return deserialize(localStorage.getItem(createLocalKey(key)));
 }
 
-export function padNum(n: number, len = 2) {
-  return n.toString().padStart(len, "0");
-}
-
-export function timestamp(seconds: number) {
-  let s = seconds / 60;
-  let m = Math.floor(s);
-  s = Math.round((s - m) * 60);
-  const h = Math.floor(m / 60);
-  m -= h * 60;
-
-  return (h ? [h, m, s] : [m, s]).map((n) => padNum(n, 2)).join(":");
-}
-
-export function percent(n: number) {
-  return `${Math.round(n * 100)}%`;
-}
-
-export function advanceOneFrame(video: HTMLVideoElement, frameRate = 30) {
-  if (!video.paused) {
-    video.pause();
-  }
-  video.currentTime += 1 / frameRate;
-}
-
-export function clamp(n: number, min: number, max: number) {
-  if (n < min) {
-    return min;
-  }
-  if (n > max) {
-    return max;
-  }
-  return n;
-}
-
-export function saturateNum(n: number, min: number, max: number) {
-  if (n < min) {
-    return saturateNum(max - (min - n), min, max);
-  }
-  if (n > max) {
-    return saturateNum(min + (n - max), min, max);
-  }
-  return n;
+export function localStorageSet<T>(
+  key: string,
+  val: T,
+  serialize: (v: T) => string = (v) => v as string,
+) {
+  localStorage.setItem(createLocalKey(key), serialize(val));
 }
 
 export function navigate(path: string) {
   location.hash = path ? encodeURI(`#${path}`) : "";
 }
 
-export function getNameFromPath(path: string) {
-  const idx = path.lastIndexOf("/");
-  if (idx === -1) {
-    return path;
-  }
+export function getFileType(name: string): FileType {
+  const idx = name.lastIndexOf(".");
+  const ext = idx === -1 ? "" : name.slice(idx);
 
-  return path.slice(idx + 1);
+  if (/\.(mp4|mkv|webm|mov|avi|flv|wmv|m4v)$/i.test(ext)) {
+    return "video";
+  }
+  if (/\.(jpe?g|png|gif|bmp|webp|tiff?|svg)$/i.test(ext)) {
+    return "image";
+  }
+  return "other";
 }
 
-export function toggleFullscreen(elem: Element) {
-  if (document.fullscreenElement === elem) {
-    document.exitFullscreen();
-  } else {
-    elem.requestFullscreen();
-  }
+export function join(p1: string, p2: string) {
+  return p1 ? `${p1}/${p2}` : p2;
 }
 
-export function withDelayedCleanup(
-  action: () => void,
-  cleanup: () => void,
-  delay = 1e3,
+export function parseFiles(
+  root: DirInfo,
+  fullPath: string,
+  ...paths: string[]
 ) {
-  let hideTimeout = 0;
-  return () => {
-    action();
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(cleanup, delay);
-  };
-}
-
-export const MAX_ZOOM = 20;
-export function basicControls(container: () => Element) {
-  const [rotation, setRotation] = ref(0);
-  const [zoom, setZoom] = ref(1);
-  const [hidden, setHidden] = ref(false);
-  const [translation, setTranslation] = ref({ x: 0, y: 0 });
-  const [fullscreen, setFullscreen] = ref(false);
-
-  const showControls = withDelayedCleanup(
-    () => setHidden(false),
-    () => setHidden(true),
-  );
-
-  let dragging = false;
-  function drag(e: MouseEvent) {
-    if (!dragging) {
-      return;
+  for (const path of paths) {
+    const idx = path.indexOf("/");
+    if (idx === -1) {
+      root.files.push({
+        name: path,
+        path: join(fullPath, path),
+        type: getFileType(path),
+        parent: root,
+        isDir: false,
+      });
+      continue;
     }
-    setTranslation.byRef((t) => {
-      t.x += e.movementX;
-      t.y += e.movementY;
-    });
-  }
 
-  function wheelZoom(e: WheelEvent) {
-    if (e.deltaY < 0) {
-      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
+    const name = path.slice(0, idx);
+    const dir = root.files.find((f) => f.name === name);
+    if (dir && dir.isDir) {
+      parseFiles(dir, join(fullPath, name), path.slice(idx + 1));
     } else {
-      setZoom(Math.max(zoom() - 0.1, 0.1));
+      const dir: FileInfo = {
+        name,
+        path: join(fullPath, name),
+        isDir: true,
+        parent: root,
+        files: [],
+      };
+      root.files.push(dir);
+      parseFiles(dir, join(fullPath, name), path.slice(idx + 1));
     }
   }
-
-  function resetZoom() {
-    setZoom(1);
-    setTranslation.byRef((t) => (t.x = t.y = 0));
-  }
-
-  function controlsListener(e: KeyboardEvent) {
-    showControls();
-    const k = e.key.toLowerCase();
-    if (k === "f") {
-      toggleFullscreen(container());
-    } else if (k === "q") {
-      setRotation(saturateNum(rotation() - 90, 0, 360));
-    } else if (k === "e") {
-      setRotation(saturateNum(rotation() + 90, 0, 360));
-    } else if (k === "z") {
-      resetZoom();
-    } else if (k === "x") {
-      setZoom(Math.max(zoom() - 0.1, 0.1));
-    } else if (k === "c") {
-      setZoom(Math.min(zoom() + 0.1, MAX_ZOOM));
-    } else if (k === "w") {
-      setTranslation.byRef((t) => (t.y += zoom() * 16));
-    } else if (k === "a") {
-      setTranslation.byRef((t) => (t.x += zoom() * 16));
-    } else if (k === "s") {
-      setTranslation.byRef((t) => (t.y -= zoom() * 16));
-    } else if (k === "d") {
-      setTranslation.byRef((t) => (t.x -= zoom() * 16));
-    } else {
-      return true;
-    }
-  }
-
-  return {
-    hidden,
-    wheelZoom,
-    showControls,
-    startDrag: (e: MouseEvent) => {
-      if (e.button === 1) {
-        dragging = true;
-      }
-    },
-    drag,
-    endDrag: () => (dragging = false),
-    controlsListener,
-    toggleFullscreen: () => toggleFullscreen(container()),
-    updateFullscreen: () =>
-      setFullscreen(document.fullscreenElement === container()),
-    resetZoom,
-    zoom,
-    setZoom,
-    fullscreen,
-    isHorizontal: () => rotation() === 90 || rotation() === 270,
-    rotationDeg: () => `${rotation()}deg`,
-    translationPx: () =>
-      zoom() > 1 ? `${translation().x}px ${translation().y}px` : null,
-    setRotation,
-    resetAll: () => {
-      setRotation(0);
-      resetZoom();
-    },
-  };
 }
