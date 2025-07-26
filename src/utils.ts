@@ -88,3 +88,39 @@ export function parseFiles(
     }
   }
 }
+
+export function getNameFromPath(path: string) {
+  const idx = path.lastIndexOf("/");
+  if (idx === -1) {
+    return path;
+  }
+
+  return path.slice(idx + 1);
+}
+
+export function percentify(n: number) {
+  return `${Math.round(n * 100)}%`;
+}
+
+export function saturateNum(n: number, min: number, max: number) {
+  if (n < min) {
+    return saturateNum(max - (min - n), min, max);
+  }
+  if (n > max) {
+    return saturateNum(min + (n - max), min, max);
+  }
+  return n;
+}
+
+export function withDelayedCleanup(
+  action: () => void,
+  cleanup: () => void,
+  delay = 1e3,
+) {
+  let hideTimeout = 0;
+  return () => {
+    action();
+    clearTimeout(hideTimeout);
+    hideTimeout = window.setTimeout(cleanup, delay);
+  };
+}

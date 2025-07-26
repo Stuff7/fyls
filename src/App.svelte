@@ -1,5 +1,6 @@
 <script lang="ts">
   import Explorer from "./Explorer.svelte";
+  import Gallery from "./Gallery.svelte";
   import type { DirInfo, NonDirInfo } from "./types";
   import {
     FILES_KEY,
@@ -77,3 +78,4 @@
   </label>
 </header>
 <Explorer root={rootPath} bind:dir={currDir} onFileSelect={selectFile} />
+<Gallery root={rootPath} bind:src={imgPath} dir={currDir} bind:open={imgOpen} />
