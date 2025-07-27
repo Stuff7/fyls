@@ -24,12 +24,51 @@
   const MAX_ZOOM = 5;
 
   let container = $state<HTMLElement>();
+  let imageElement = $state<HTMLImageElement>();
   let translation = $state({ x: 0, y: 0 });
   let rotation = $state(0);
   let zoom = $state(1);
   let isFullscreen = $state(false);
   let ctrlsVisible = $state(false);
   let isDragging = $state(false);
+  let showShortcuts = $state(false);
+  let lockControls = $state(false);
+
+  const shortcuts = [
+    // General
+    { key: "?", description: "Toggle this list of shortcuts" },
+    { key: "Esc", description: "Close overlay or exit fullscreen" },
+    { key: "R", description: "Reset zoom and position" },
+
+    // Navigation
+    { key: "←", description: "Previous image" },
+    { key: "→", description: "Next image" },
+
+    // View Mode
+    { key: "F", description: "Toggle fullscreen" },
+    { key: "Dbl Click", description: "Toggle fullscreen" },
+
+    // Rotation
+    { key: "Q", description: "Rotate left 90°" },
+    { key: "E", description: "Rotate right 90°" },
+
+    // Zooming
+    { key: "Z", description: "Reset zoom" },
+    { key: "X", description: "Zoom out" },
+    { key: "C", description: "Zoom in" },
+    { key: "Wheel", description: "Zoom in or out" },
+
+    // Panning
+    { key: "W", description: "Pan up" },
+    { key: "A", description: "Pan left" },
+    { key: "S", description: "Pan down" },
+    { key: "D", description: "Pan right" },
+    { key: "Mid+Drag", description: "Move (pan) image" },
+  ];
+
+  $effect(() => {
+    if (zoom === 1) translation = { x: 0, y: 0 };
+  });
 
   const showControls = withDelayedCleanup(
     () => (ctrlsVisible = true),
@@ -55,9 +94,57 @@
     translation.x = translation.y = 0;
   }
 
+  function getImageBounds() {
+    if (!imageElement || !container) return null;
+
+    const containerRect = container.getBoundingClientRect();
+    const imageRect = imageElement.getBoundingClientRect();
+
+    return {
+      container: containerRect,
+      image: imageRect,
+    };
+  }
+
+  function zoomAtPoint(newZoom: number, clientX: number, clientY: number) {
+    const bounds = getImageBounds();
+    if (!bounds) return;
+
+    const { container: containerRect, image: imageRect } = bounds;
+
+    const cursorX = clientX - containerRect.left;
+    const cursorY = clientY - containerRect.top;
+
+    const imageCenterX =
+      imageRect.left + imageRect.width / 2 - containerRect.left;
+    const imageCenterY =
+      imageRect.top + imageRect.height / 2 - containerRect.top;
+
+    const offsetX = cursorX - imageCenterX;
+    const offsetY = cursorY - imageCenterY;
+
+    const zoomFactor = newZoom / zoom;
+
+    const strength = 1.2;
+    translation.x -= offsetX * (zoomFactor - 1) * strength;
+    translation.y -= offsetY * (zoomFactor - 1) * strength;
+
+    zoom = newZoom;
+  }
+
   function doWheelZoom(e: WheelEvent) {
-    if (e.deltaY < 0) zoom = Math.min(zoom + 0.1, MAX_ZOOM);
-    else zoom = Math.max(zoom - 0.1, 0.1);
+    e.preventDefault();
+
+    const zoomStep = 0.1;
+    let newZoom: number;
+
+    if (e.deltaY < 0) {
+      newZoom = Math.min(zoom + zoomStep, MAX_ZOOM);
+    } else {
+      newZoom = Math.max(zoom - zoomStep, 0.1);
+    }
+
+    zoomAtPoint(newZoom, e.clientX, e.clientY);
   }
 
   function doDrag(e: MouseEvent) {
@@ -68,6 +155,28 @@
     translation.y += e.movementY;
   }
 
+  function navToPrevFile() {
+    for (let i = fileIdx - 1; i >= 0; i--) {
+      const f = dir.files[i];
+      if (f.isDir) continue;
+      navigate(f.path);
+      break;
+    }
+  }
+
+  function navToNextFile() {
+    for (let i = fileIdx + 1; i < dir.files.length; i++) {
+      const f = dir.files[i];
+      if (f.isDir) continue;
+      navigate(f.path);
+      break;
+    }
+  }
+
+  function rotate(rel: number) {
+    rotation = saturateNum(rotation + rel, 0, 360);
+  }
+
   function ctrlsListener(e: KeyboardEvent) {
     if (!container) return;
     showControls();
@@ -75,9 +184,9 @@
     if (k === "f") {
       toggleFullscreen(container);
     } else if (k === "q") {
-      rotation = saturateNum(rotation - 90, 0, 360);
+      rotate(-90);
     } else if (k === "e") {
-      rotation = saturateNum(rotation + 90, 0, 360);
+      rotate(90);
     } else if (k === "z") {
       resetZoom();
     } else if (k === "x") {
@@ -92,20 +201,15 @@
       translation.y -= zoom * 16;
     } else if (k === "d") {
       translation.x -= zoom * 16;
+    } else if (k === "r") {
+      zoom = 1;
+      translation = { x: 0, y: 0 };
+    } else if (k === "?") {
+      showShortcuts = !showShortcuts;
     } else if (e.key === "ArrowLeft") {
-      for (let i = fileIdx - 1; i >= 0; i--) {
-        const f = dir.files[i];
-        if (f.isDir) continue;
-        navigate(f.path);
-        break;
-      }
+      navToPrevFile();
     } else if (e.key === "ArrowRight") {
-      for (let i = fileIdx + 1; i < dir.files.length; i++) {
-        const f = dir.files[i];
-        if (f.isDir) continue;
-        navigate(f.path);
-        break;
-      }
+      navToNextFile();
     } else if (e.key === "Escape") {
       if (selectedFile?.parent?.path) navigate(selectedFile.parent.path);
     } else {
@@ -116,6 +220,7 @@
 
 <svelte:window
   onkeydown={ctrlsListener}
+  onpointerup={() => (isDragging = false)}
   onfullscreenchange={() =>
     (isFullscreen = document.fullscreenElement === container)}
 />
@@ -126,7 +231,7 @@
     role="dialog"
     tabindex="0"
     class={`gallery ${selectedFile.type}`}
-    class:hidden-ctrls={!ctrlsVisible}
+    class:hidden-ctrls={!lockControls && !ctrlsVisible}
     onwheel={doWheelZoom}
     onpointerdown={(e) => e.button === 1 && (isDragging = true)}
     onpointermove={(e) => {
@@ -135,7 +240,6 @@
     }}
     onpointerenter={showControls}
     onpointerleave={() => (ctrlsVisible = false)}
-    onpointerup={() => (isDragging = false)}
     ondblclick={() => toggleFullscreen(container)}
   >
     <header>
@@ -148,9 +252,43 @@
       </button>
     </header>
     <footer>
+      <button
+        class="control icon"
+        title="Keyboard Shortcuts"
+        onclick={() => (showShortcuts = !showShortcuts)}
+      >
+        ?
+      </button>
+      <button
+        class="control icon"
+        title="Lock Controls"
+        onclick={() => (lockControls = !lockControls)}
+      >
+        {lockControls ? "" : ""}
+      </button>
+      <button
+        class="control icon"
+        title="Rotate Right"
+        onclick={() => rotate(90)}
+      >
+        
+      </button>
+      <button
+        class="control icon"
+        title="Rotate Left"
+        onclick={() => rotate(-90)}
+      >
+        
+      </button>
+      <button class="control icon" title="Prev File" onclick={navToPrevFile}>
+        
+      </button>
+      <button class="control icon" title="Next File" onclick={navToNextFile}>
+        
+      </button>
       <span class="control">
         <strong>{percentify(zoom)}</strong>
-        <button class="icon" onclick={resetZoom}>  </button>
+        <button class="icon" title="Reset Zoom" onclick={resetZoom}>  </button>
         <RangeInput
           min={0.1}
           max={MAX_ZOOM}
@@ -159,11 +297,16 @@
           onKeyDown={(e) => e.preventDefault()}
         />
       </span>
-      <button class="control icon" onclick={() => toggleFullscreen(container)}>
+      <button
+        class="control icon"
+        title="Toggle Fullscreen"
+        onclick={() => toggleFullscreen(container)}
+      >
         {isFullscreen ? "" : ""}
       </button>
     </footer>
     <img
+      bind:this={imageElement}
       class="src"
       src={selectedFile.src}
       class:horizontal={rotation === 90 || rotation === 270}
@@ -174,5 +317,29 @@
       alt={selectedFile.name}
       onloadedmetadata={resetAll}
     />
+    {#if showShortcuts}
+      <div
+        role="dialog"
+        class="absolute z-50 p-6 rounded-lg bg-black/90 left-4 bottom-4 text-white shadow-xl max-w-5xl max-h-[80vh] overflow-y-auto opacity-100!"
+      >
+        <h1 class="font-bold text-lg mb-4 text-center">Keyboard Shortcuts</h1>
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-1"
+        >
+          {#each shortcuts as shortcut}
+            <div class="grid grid-cols-[5.2rem_1fr] gap-3 items-center py-1">
+              <kbd
+                class="bg-white/15 border border-white/25 text-white px-2 py-1 rounded font-mono text-xs text-center whitespace-nowrap"
+              >
+                {shortcut.key}
+              </kbd>
+              <span class="text-white/90 text-sm leading-tight"
+                >{shortcut.description}</span
+              >
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </section>
 {/if}

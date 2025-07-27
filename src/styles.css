@@ -238,7 +238,7 @@ textarea {
   }
 
   &.image > footer {
-    @apply grid-cols-[auto_auto] justify-end;
+    @apply grid-flow-col justify-end;
   }
 
   > .control,
@@ -251,7 +251,7 @@ textarea {
     @apply absolute w-full h-full -z-1;
 
     &.horizontal {
-      @apply min-h-screen;
+      @apply min-h-dvw;
     }
   }
 }
