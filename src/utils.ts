@@ -1,4 +1,4 @@
-import type { DirInfo, FileInfo, FileType } from "./types";
+import type { DirInfo, FileDetails, FileInfo, FileType } from "./types";
 
 const createLocalKey = (name: string) => `fyls__${name}`;
 export const FILES_KEY = createLocalKey("files");
@@ -123,4 +123,35 @@ export function withDelayedCleanup(
     clearTimeout(hideTimeout);
     hideTimeout = window.setTimeout(cleanup, delay);
   };
+}
+
+export function getPath(root: string, filepath: string) {
+  return encodeURI(join(root, filepath));
+}
+
+export function findRoute(root: string, rootDir: DirInfo) {
+  const hash = decodeURI(location.hash);
+  const files = hash.slice(1).split("/");
+  const parent = {
+    ...rootDir,
+    src: getPath(root, rootDir.path),
+  };
+  let file: FileDetails | undefined = parent;
+
+  for (const name of files) {
+    if (!file?.isDir) {
+      break;
+    }
+
+    const match = file.files.find((f) => f.name === name);
+    console.log("MATCH ", name, { ...file }, match ? { ...match } : match);
+    if (!match) {
+      file = undefined;
+      break;
+    }
+    file = { ...match, src: getPath(root, match.path) };
+  }
+
+  console.log("RET", hash, file || { ...parent });
+  return file || parent;
 }

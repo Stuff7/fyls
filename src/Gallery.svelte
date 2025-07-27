@@ -1,95 +1,178 @@
 <script lang="ts">
-  import {
-    controlsListener,
-    doDrag,
-    doWheelZoom,
-    endDrag,
-    getControls,
-    isFullscreen,
-    isHorizontal,
-    MAX_ZOOM,
-    resetAllControls,
-    resetZoom,
-    rotationDeg,
-    startDrag,
-    toggleFullscreen,
-    translationPx,
-  } from "./controls";
   import RangeInput from "./RangeInput.svelte";
-  import type { DirInfo } from "./types";
-  import { getNameFromPath, percentify, join } from "./utils";
+  import type { DirInfo, FileDetails } from "./types";
+  import {
+    navigate,
+    percentify,
+    saturateNum,
+    withDelayedCleanup,
+  } from "./utils";
 
   type Props = {
-    root: string;
-    src: string;
-    open: boolean;
     dir: DirInfo;
+    selectedFile?: FileDetails;
   };
 
-  let { root, src = $bindable(), open = $bindable(), dir }: Props = $props();
+  let { dir, selectedFile = $bindable() }: Props = $props();
+
+  const fileIdx = $derived(
+    selectedFile
+      ? dir.files.findIndex((f) => f.path === selectedFile!.path)
+      : -1,
+  );
+
+  const MAX_ZOOM = 5;
 
   let container = $state<HTMLElement>();
-  const controls = $state(getControls());
+  let translation = $state({ x: 0, y: 0 });
+  let rotation = $state(0);
+  let zoom = $state(1);
+  let isFullscreen = $state(false);
+  let ctrlsVisible = $state(false);
+  let isDragging = $state(false);
+
+  const showControls = withDelayedCleanup(
+    () => (ctrlsVisible = true),
+    () => (ctrlsVisible = false),
+  );
+
+  function toggleFullscreen(elem?: Element) {
+    if (!elem) return;
+    if (document.fullscreenElement === elem) {
+      document.exitFullscreen();
+    } else {
+      elem.requestFullscreen();
+    }
+  }
+
+  function resetAll() {
+    rotation = 0;
+    resetZoom();
+  }
+
+  function resetZoom() {
+    zoom = 1;
+    translation.x = translation.y = 0;
+  }
+
+  function doWheelZoom(e: WheelEvent) {
+    if (e.deltaY < 0) zoom = Math.min(zoom + 0.1, MAX_ZOOM);
+    else zoom = Math.max(zoom - 0.1, 0.1);
+  }
+
+  function doDrag(e: MouseEvent) {
+    if (!isDragging) {
+      return;
+    }
+    translation.x += e.movementX;
+    translation.y += e.movementY;
+  }
+
+  function ctrlsListener(e: KeyboardEvent) {
+    if (!container) return;
+    showControls();
+    const k = e.key.toLowerCase();
+    if (k === "f") {
+      toggleFullscreen(container);
+    } else if (k === "q") {
+      rotation = saturateNum(rotation - 90, 0, 360);
+    } else if (k === "e") {
+      rotation = saturateNum(rotation + 90, 0, 360);
+    } else if (k === "z") {
+      resetZoom();
+    } else if (k === "x") {
+      zoom = Math.max(zoom - 0.1, 0.1);
+    } else if (k === "c") {
+      zoom = Math.min(zoom + 0.1, MAX_ZOOM);
+    } else if (k === "w") {
+      translation.y += zoom * 16;
+    } else if (k === "a") {
+      translation.x += zoom * 16;
+    } else if (k === "s") {
+      translation.y -= zoom * 16;
+    } else if (k === "d") {
+      translation.x -= zoom * 16;
+    } else if (e.key === "ArrowLeft") {
+      for (let i = fileIdx - 1; i >= 0; i--) {
+        const f = dir.files[i];
+        if (f.isDir) continue;
+        navigate(f.path);
+        break;
+      }
+    } else if (e.key === "ArrowRight") {
+      for (let i = fileIdx + 1; i < dir.files.length; i++) {
+        const f = dir.files[i];
+        if (f.isDir) continue;
+        navigate(f.path);
+        break;
+      }
+    } else if (e.key === "Escape") {
+      if (selectedFile?.parent?.path) navigate(selectedFile.parent.path);
+    } else {
+      return true;
+    }
+  }
 </script>
 
 <svelte:window
-  onkeydown={(e) => {
-    controlsListener(controls, e, container);
-    if (e.key === "ArrowLeft") {
-      const idx = dir.files.findIndex((f) => join(root, f.path) === src);
-      if (idx > 0) src = join(root, dir.files[idx - 1].path);
-    } else if (e.key === "ArrowRight") {
-      const idx = dir.files.findIndex((f) => join(root, f.path) === src);
-      if (idx < dir.files.length) src = join(root, dir.files[idx + 1].path);
-    }
-  }}
-  onfullscreenchange={() => (controls.isFullscreen = isFullscreen(container))}
+  onkeydown={ctrlsListener}
+  onfullscreenchange={() =>
+    (isFullscreen = document.fullscreenElement === container)}
 />
-{#if open}
+
+{#if selectedFile && !selectedFile.isDir}
   <section
-    class="media gallery"
+    bind:this={container}
     role="dialog"
     tabindex="0"
-    bind:this={container}
-    onwheel={(e) => doWheelZoom(controls, e)}
-    onmousedown={(e) => startDrag(controls, e)}
-    onmousemove={(e) => {
-      controls.showControls();
-      doDrag(controls, e);
+    class={`gallery ${selectedFile.type}`}
+    class:hidden-ctrls={!ctrlsVisible}
+    onwheel={doWheelZoom}
+    onpointerdown={(e) => e.button === 1 && (isDragging = true)}
+    onpointermove={(e) => {
+      showControls();
+      doDrag(e);
     }}
-    onmouseup={() => endDrag(controls)}
+    onpointerenter={showControls}
+    onpointerleave={() => (ctrlsVisible = false)}
+    onpointerup={() => (isDragging = false)}
     ondblclick={() => toggleFullscreen(container)}
   >
     <header>
-      <strong class="title">{getNameFromPath(src)} | Q / E to rotate</strong>
-      <button class="icon no-color" onclick={() => (open = !open)}>  </button>
+      <h1 class="title">{selectedFile.name}</h1>
+      <button
+        class="icon no-color"
+        onclick={() => navigate(selectedFile!.parent!.path)}
+      >
+        
+      </button>
     </header>
     <footer>
       <span class="control">
-        <strong>{percentify(controls.zoom)}</strong>
-        <button class="icon" onclick={() => resetZoom(controls)}>  </button>
+        <strong>{percentify(zoom)}</strong>
+        <button class="icon" onclick={resetZoom}>  </button>
         <RangeInput
           min={0.1}
           max={MAX_ZOOM}
-          bind:value={controls.zoom}
+          bind:value={zoom}
           step={0.1}
           onKeyDown={(e) => e.preventDefault()}
         />
       </span>
       <button class="control icon" onclick={() => toggleFullscreen(container)}>
-        {controls.isFullscreen ? "" : ""}
+        {isFullscreen ? "" : ""}
       </button>
     </footer>
     <img
-      class:src
-      {src}
-      class:horizontal={isHorizontal(controls)}
-      style:rotate={rotationDeg(controls)}
-      style:scale={controls.zoom}
-      style:translate={translationPx(controls)}
+      class="src"
+      src={selectedFile.src}
+      class:horizontal={rotation === 90 || rotation === 270}
+      style:rotate={`${rotation}deg`}
+      style:scale={zoom}
+      style:translate={`${translation.x}px ${translation.y}px`}
       style:object-fit="contain"
-      alt="Gallery"
-      onloadedmetadata={() => resetAllControls(controls)}
+      alt={selectedFile.name}
+      onloadedmetadata={resetAll}
     />
   </section>
 {/if}

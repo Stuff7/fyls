@@ -1,29 +1,31 @@
 <script lang="ts">
   import Explorer from "./Explorer.svelte";
   import Gallery from "./Gallery.svelte";
-  import type { DirInfo, NonDirInfo } from "./types";
+  import type { DirInfo } from "./types";
   import {
     FILES_KEY,
+    findRoute,
     localStorageGet,
     localStorageSet,
     navigate,
     parseFiles,
   } from "./utils";
 
-  let videoPath = $state("");
-  let videoOpen = $state(false);
-  let imgPath = $state("");
-  let imgOpen = $state(false);
   let rootPath = $state(localStorageGet("rootDir", (v) => v || ""));
+
   $effect(() => localStorageSet("rootDir", rootPath));
 
-  const rootDir = (() => {
-    const root: DirInfo = { name: "Root", path: "", isDir: true, files: [] };
-    const paths = JSON.parse(localStorage.getItem(FILES_KEY) || "[]");
-    parseFiles(root, "", ...paths);
-    return root;
-  })();
-  let currDir = $state<DirInfo>(rootDir);
+  const rootDir = $state(
+    (() => {
+      const root: DirInfo = { name: "Root", path: "", isDir: true, files: [] };
+      const paths = JSON.parse(localStorage.getItem(FILES_KEY) || "[]");
+      parseFiles(root, "", ...paths);
+      return root;
+    })(),
+  );
+
+  let currDir = $derived<DirInfo>(rootDir);
+  let selectedFile = $derived(findRoute(rootPath, rootDir));
 
   function updateRootPath(this: HTMLInputElement) {
     if (!this.value) return (rootPath = this.value);
@@ -39,16 +41,6 @@
       localStorage.setItem(FILES_KEY, JSON.stringify(paths));
       rootDir.files.length = 0;
       parseFiles(rootDir, "", ...paths);
-    }
-  }
-
-  function selectFile(path: string, file: NonDirInfo) {
-    if (file.type === "video") {
-      videoPath = path;
-      videoOpen = true;
-    } else if (file.type === "image") {
-      imgPath = path;
-      imgOpen = true;
     }
   }
 </script>
@@ -77,5 +69,5 @@
     />
   </label>
 </header>
-<Explorer root={rootPath} bind:dir={currDir} onFileSelect={selectFile} />
-<Gallery root={rootPath} bind:src={imgPath} dir={currDir} bind:open={imgOpen} />
+<Explorer root={rootPath} {rootDir} bind:dir={currDir} bind:selectedFile />
+<Gallery bind:selectedFile dir={currDir} />

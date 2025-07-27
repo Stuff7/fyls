@@ -1,46 +1,30 @@
 <script lang="ts">
   import Thumbnail from "./Thumbnail.svelte";
-  import { join, navigate } from "./utils";
-  import type { DirInfo, FileInfo, NonDirInfo } from "./types";
+  import { findRoute, getPath, navigate } from "./utils";
+  import type { DirInfo, FileDetails, FileInfo } from "./types";
 
   type Props = {
     root: string;
+    rootDir: DirInfo;
     dir: DirInfo;
-    onFileSelect: (path: string, file: NonDirInfo) => void;
+    selectedFile: FileDetails;
   };
 
-  let { root, dir = $bindable(), onFileSelect }: Props = $props();
-
-  const croot = dir as FileInfo;
-  let currFile = $state(findRoute());
-  const getPath = (filepath: string) => encodeURI(join(root, filepath));
-
-  function findRoute() {
-    const hash = decodeURI(location.hash);
-    const files = hash.slice(1).split("/");
-    let file: FileInfo | undefined = croot;
-
-    for (const name of files) {
-      if (!file?.isDir) {
-        break;
-      }
-      file = file.files.find((f) => f.name === name);
-      if (!file) {
-        break;
-      }
-    }
-
-    return file || croot;
-  }
+  let {
+    root,
+    rootDir,
+    dir = $bindable(),
+    selectedFile = $bindable(),
+  }: Props = $props();
 
   const isMedia = (file: FileInfo) => !file.isDir && file.type !== "other";
   const isFile = (file: FileInfo) => !file.isDir && file.type === "other";
   const fileType = (file: FileInfo) => (file.isDir ? "other" : file.type);
 
   $effect(() => {
-    const file = currFile;
-    if (file === dir) return;
-    if (typeof file === "string") return;
+    const file = selectedFile;
+    if (file.path === dir.path || typeof file === "string") return;
+
     if (file.isDir) {
       dir = file;
     } else {
@@ -48,13 +32,15 @@
         dir = file.parent;
       }
       if (isMedia(file)) {
-        onFileSelect(getPath(file.path), file);
+        selectedFile = file;
       }
     }
   });
 </script>
 
-<svelte:window on:hashchange={() => (currFile = findRoute())} />
+<svelte:window
+  on:hashchange={() => (selectedFile = findRoute(root, rootDir))}
+/>
 <article class="explorer">
   <header>
     <button
@@ -73,11 +59,14 @@
       class:directory={file.isDir}
       class:unknown={isFile(file)}
       class="button no-color"
-      onclick={() => navigate(file.path)}
+      onclick={() => {
+        navigate(file.path);
+        console.log(file.path);
+      }}
     >
       <Thumbnail
         shown={isMedia(file)}
-        path={getPath(file.path)}
+        path={getPath(root, file.path)}
         ftype={fileType(file)}
       />
       {#if file.isDir || isFile(file)}
