@@ -2,7 +2,7 @@
 
 html,
 body {
-  @apply text-sm accent-indigo-500 dark:accent-amber-300 bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50 overflow-hidden! fixed h-dvh w-dvw;
+  @apply text-sm accent-amber-300 bg-zinc-900 text-zinc-50 overflow-hidden! fixed h-dvh w-dvw;
   background: linear-gradient(to bottom right, #0f4840, #4f2f4f, #091111 120%);
 }
 
@@ -17,8 +17,7 @@ body {
 }
 
 ::selection {
-  @apply bg-indigo-500 text-zinc-100;
-  @apply dark:bg-amber-300 dark:text-zinc-800;
+  @apply bg-amber-300 text-zinc-800;
 }
 
 :disabled {
@@ -39,8 +38,11 @@ select {
 .button,
 button:not(.plain):not(.icon),
 select {
-  @apply outline -outline-offset-1;
-  @apply dark:outline-zinc-700;
+  @apply rounded-md;
+  &:active,
+  &:focus {
+    @apply outline -outline-offset-1;
+  }
 }
 
 button:not(.plain),
@@ -60,12 +62,12 @@ button,
 :not(.named-input) > input,
 textarea,
 select {
-  @apply focus:outline focus:outline-indigo-500 dark:focus:outline-amber-300 -outline-offset-1;
+  @apply focus:outline -outline-offset-1;
 }
 
 :not(.named-input) > input:not([type="color"]),
 textarea {
-  @apply px-2 rounded-xs bg-zinc-50 text-zinc-900 outline-indigo-700 dark:bg-zinc-900 dark:text-zinc-50 dark:outline-amber-200;
+  @apply px-2 rounded-xs bg-zinc-900 text-zinc-50;
 }
 
 @utility scrollbar-hidden {
@@ -88,7 +90,7 @@ textarea {
          px-4 py-2 relative transition-[background,color,padding,border] duration-200;
 
   input {
-    @apply outline-none;
+    @apply outline-0;
   }
 
   input::placeholder {
@@ -178,8 +180,16 @@ textarea {
 @utility gallery {
   @apply grid items-center fixed left-0 top-0 w-screen h-screen backdrop-blur-md bg-black/80 z-1;
 
+  .icon {
+    @apply aspect-square w-8 flex items-center justify-center rounded-sm;
+  }
+
   &.video {
-    @apply grid-rows-[auto_1fr_auto];
+    @apply grid-rows-[auto_minmax(0,1fr)_auto];
+
+    .play {
+      @apply h-full text-[16rem] outline-0! w-full opacity-50 text-white!;
+    }
   }
 
   &.image {
@@ -191,64 +201,64 @@ textarea {
   }
 
   &.hidden-ctrls {
-    @apply cursor-none;
+    &,
+    * {
+      @apply cursor-none!;
+    }
   }
 
   &.hidden-ctrls > :not(.src) {
     @apply opacity-0;
   }
 
-  > header {
-    @apply p-4 grid grid-cols-[1fr_auto] bg-gradient-to-b from-black to-transparent;
-  }
+  header {
+    @apply p-4 flex gap-2 bg-gradient-to-b from-black to-transparent;
 
-  > .play {
-    opacity: 0.5 !important;
-    @apply h-full text-[16rem];
-
-    > i {
-      @apply transition-all duration-400;
-
-      &.pop-enter-active,
-      &.pop-leave-active {
-        @apply opacity-100 text-[18rem];
-      }
-
-      &.pop-enter-from,
-      &.pop-leave-to {
-        @apply opacity-0 text-[16rem];
-      }
+    h1 {
+      @apply flex-1;
     }
   }
 
   > footer {
     @apply grid items-center gap-4 bg-gradient-to-t from-black to-transparent p-4;
+  }
 
-    > .control {
-      @apply relative flex gap-2 items-center leading-none;
+  .control {
+    @apply relative flex gap-1 items-center z-10;
 
+    &.horizontal .range-input {
+      @apply w-30;
+    }
+
+    &:not(.horizontal) {
       .range-input {
-        @apply w-24;
+        @apply absolute opacity-0 -top-30 h-30 z-10;
+      }
+
+      &:hover .range-input {
+        @apply opacity-100;
+      }
+
+      strong {
+        @apply w-9;
       }
     }
   }
 
   &.video > footer {
-    @apply grid-cols-[auto_1fr_repeat(3,auto)_repeat(3,4rem)_auto];
+    @apply flex gap-2;
+
+    .progress-bar {
+      @apply flex-1;
+    }
   }
 
   &.image > footer {
     @apply grid-flow-col justify-end;
   }
 
-  > .control,
-  > footer .control,
-  > .play {
-    @apply border-0;
-  }
-
-  > .src {
-    @apply absolute w-full h-full -z-1;
+  .src {
+    @apply absolute -z-1 w-full h-full;
 
     &.horizontal {
       @apply min-h-dvw;
@@ -258,20 +268,88 @@ textarea {
 
 @utility range-input {
   @apply appearance-none bg-transparent;
-  @apply relative grid items-center h-8;
+  @apply relative grid;
 
-  > label {
-    @apply opacity-0 pointer-events-none absolute px-3 py-1.5 text-zinc-200 bg-black/70 rounded transition-all duration-300 -translate-y-full;
-    left: var(--x);
-    transform: translateX(calc(var(--offset-x) - 50%));
+  &.vertical {
+    @apply w-8 h-full justify-center;
 
-    &.left {
-      --offset-x: 1rem;
+    input {
+      @apply h-full w-8 left-1/2 -translate-x-1/2;
+      writing-mode: vertical-lr;
+      direction: rtl;
     }
 
-    &.right {
-      --offset-x: -1rem;
+    output {
+      @apply left-6 -translate-y-1/2;
+      top: var(--x);
     }
+
+    > .progress {
+      @apply justify-center w-2 h-full flex-wrap-reverse;
+
+      &::before {
+        @apply w-full bg-gradient-to-t;
+        height: var(--progress);
+      }
+
+      &::after {
+        @apply translate-y-1/2;
+        bottom: var(--progress);
+      }
+    }
+  }
+
+  &:not(.vertical) {
+    @apply h-8 items-center;
+
+    input {
+      @apply w-full h-8;
+    }
+
+    output {
+      @apply bottom-6 -translate-x-1/2;
+      left: var(--x);
+
+      &.left {
+        margin-left: 1rem;
+      }
+
+      &.right {
+        margin-left: -1rem;
+      }
+    }
+
+    > .progress {
+      @apply items-center h-2;
+
+      &::before {
+        @apply h-full bg-gradient-to-r;
+        width: var(--progress);
+      }
+
+      &::after {
+        @apply -translate-x-1/2;
+        left: var(--progress);
+      }
+    }
+  }
+
+  input {
+    @apply absolute inset-0 outline-0 cursor-pointer z-10 opacity-0 p-0! m-0!;
+
+    &::-webkit-slider-thumb {
+      @apply range-thumb;
+    }
+
+    &::-moz-range-thumb {
+      @apply range-thumb;
+    }
+  }
+
+  output {
+    @apply opacity-0 pointer-events-none absolute p-2 outline
+           text-zinc-200 bg-black/70 rounded transition-[translate]
+           duration-300 outline-zinc-800 z-10;
   }
 
   &:hover {
@@ -279,37 +357,28 @@ textarea {
       @apply w-5 h-5;
     }
 
-    > label {
+    output {
       @apply opacity-100;
     }
   }
 
   > .progress {
-    @apply flex items-center z-0 h-2 pointer-events-none bg-zinc-800 border border-amber-300/25 rounded relative;
+    @apply relative flex z-0 pointer-events-none bg-zinc-800 border border-amber-300/25 rounded relative;
 
     &::before {
-      @apply block h-full bg-gradient-to-r from-green-500 to-amber-300 rounded-l;
+      @apply block from-green-500 to-amber-300 rounded-lg;
       content: "";
-      width: var(--progress);
     }
 
     &::after {
-      @apply block w-4 h-4 rounded-full bg-amber-300 absolute transition-[box-shadow,color,width,height] duration-300 -translate-x-1/2 z-1;
+      @apply block w-4 h-4 rounded-full bg-amber-300 absolute transition-[box-shadow,color,width,height] duration-300 z-1;
       content: "";
-      left: var(--progress);
     }
   }
+}
 
-  > input {
-    @apply absolute inset-0 w-full h-8 outline-none cursor-pointer z-10 opacity-0;
-
-    &::-webkit-slider-thumb,
-    &::-moz-range-thumb,
-    &::-ms-thumb {
-      @apply opacity-0 border-0 cursor-pointer w-6 h-6;
-      -webkit-appearance: none;
-    }
-  }
+@utility range-thumb {
+  @apply opacity-0 border-0 cursor-pointer w-0 h-0;
   -webkit-appearance: none;
 }
 
@@ -319,22 +388,20 @@ textarea {
   }
 
   &:not(.icon):not(.no-color) {
-    @apply bg-zinc-200 text-zinc-800 hover:bg-indigo-500 active:bg-indigo-900 hover:text-zinc-200 active:text-zinc-200;
-    @apply dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-amber-300 dark:active:bg-amber-100 dark:hover:text-zinc-800 dark:active:text-zinc-800;
+    @apply bg-zinc-50 text-zinc-900 hover:bg-amber-300 active:bg-amber-100 hover:text-zinc-800 active:text-zinc-800;
 
     &.selected {
-      @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100;
+      @apply bg-zinc-900 text-zinc-100;
     }
   }
 
   &.icon {
-    @apply text-zinc-200 hover:text-indigo-500 active:text-indigo-900;
-    @apply dark:text-zinc-50 dark:hover:text-amber-300 dark:active:text-amber-100;
+    @apply text-zinc-50 hover:text-amber-300 active:text-amber-100;
   }
 }
 
 @utility icon {
   font-family: icon, monospace;
-  @apply border-0 outline-0 p-2 inline-block text-center not-italic;
+  @apply border-0 outline-0 p-2 inline-block text-center not-italic leading-none;
   outline: 0;
 }

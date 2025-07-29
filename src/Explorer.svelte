@@ -1,6 +1,6 @@
 <script lang="ts">
   import Thumbnail from "./Thumbnail.svelte";
-  import { findRoute, getPath, navigate } from "./utils";
+  import { disableSpace, findRoute, getPath, navigate } from "./utils";
   import type { DirInfo, FileDetails, FileInfo } from "./types";
 
   type Props = {
@@ -59,10 +59,8 @@
       class:directory={file.isDir}
       class:unknown={isFile(file)}
       class="button no-color"
-      onclick={() => {
-        navigate(file.path);
-        console.log(file.path);
-      }}
+      onclick={() => navigate(file.path)}
+      onkeydown={disableSpace}
     >
       <Thumbnail
         shown={isMedia(file)}

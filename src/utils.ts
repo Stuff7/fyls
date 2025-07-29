@@ -144,7 +144,6 @@ export function findRoute(root: string, rootDir: DirInfo) {
     }
 
     const match = file.files.find((f) => f.name === name);
-    console.log("MATCH ", name, { ...file }, match ? { ...match } : match);
     if (!match) {
       file = undefined;
       break;
@@ -152,6 +151,13 @@ export function findRoute(root: string, rootDir: DirInfo) {
     file = { ...match, src: getPath(root, match.path) };
   }
 
-  console.log("RET", hash, file || { ...parent });
   return file || parent;
+}
+
+export function clamp(n: number, min: number, max: number) {
+  return Math.max(Math.min(n, max), min);
+}
+
+export function disableSpace(e: KeyboardEvent) {
+  if (e.key === " ") e.preventDefault();
 }

@@ -12,7 +12,6 @@
   } from "./utils";
 
   let rootPath = $state(localStorageGet("rootDir", (v) => v || ""));
-
   $effect(() => localStorageSet("rootDir", rootPath));
 
   const rootDir = $state(
@@ -58,7 +57,7 @@
     <input onchange={updateRootPath} value={rootPath} placeholder="-" />
     <em class="placeholder"><i></i> Root directory</em>
   </label>
-  <label class="button rounded-sm h-full items-center flex gap-2">
+  <label class="button h-full items-center flex gap-2">
     <i></i> Select directory
     <input
       class="invisible absolute -left-[9999px]"

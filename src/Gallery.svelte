@@ -2,11 +2,12 @@
   import RangeInput from "./RangeInput.svelte";
   import type { DirInfo, FileDetails } from "./types";
   import {
+    disableSpace,
     navigate,
-    percentify,
     saturateNum,
     withDelayedCleanup,
   } from "./utils";
+  import VideoControls from "./VideoControls.svelte";
 
   type Props = {
     dir: DirInfo;
@@ -21,13 +22,16 @@
       : -1,
   );
 
-  const MAX_ZOOM = 5;
+  const MAX_ZOOM = 500;
 
   let container = $state<HTMLElement>();
   let imageElement = $state<HTMLImageElement>();
+  let videoElement = $state<HTMLVideoElement>();
+
   let translation = $state({ x: 0, y: 0 });
   let rotation = $state(0);
-  let zoom = $state(1);
+  let zoom = $state(100);
+  let zoomFactor = $derived(zoom / 100);
   let isFullscreen = $state(false);
   let ctrlsVisible = $state(false);
   let isDragging = $state(false);
@@ -36,7 +40,7 @@
 
   const shortcuts = [
     // General
-    { key: "?", description: "Toggle this list of shortcuts" },
+    { key: "H", description: "Toggle this list of shortcuts" },
     { key: "Esc", description: "Close overlay or exit fullscreen" },
     { key: "R", description: "Reset zoom and position" },
 
@@ -67,7 +71,7 @@
   ];
 
   $effect(() => {
-    if (zoom === 1) translation = { x: 0, y: 0 };
+    if (zoom === 100) translation = { x: 0, y: 0 };
   });
 
   const showControls = withDelayedCleanup(
@@ -90,58 +94,70 @@
   }
 
   function resetZoom() {
-    zoom = 1;
+    zoom = 100;
     translation.x = translation.y = 0;
   }
 
-  function getImageBounds() {
-    if (!imageElement || !container) return null;
+  function getMediaBounds() {
+    if (!container) return null;
 
     const containerRect = container.getBoundingClientRect();
-    const imageRect = imageElement.getBoundingClientRect();
+    let mediaRect: DOMRect;
+
+    if (!selectedFile || selectedFile.isDir) return;
+
+    if (selectedFile.type === "image" && imageElement) {
+      mediaRect = imageElement.getBoundingClientRect();
+    } else if (selectedFile.type === "video" && videoElement) {
+      mediaRect = videoElement.getBoundingClientRect();
+    } else {
+      return null;
+    }
 
     return {
       container: containerRect,
-      image: imageRect,
+      media: mediaRect,
     };
   }
 
   function zoomAtPoint(newZoom: number, clientX: number, clientY: number) {
-    const bounds = getImageBounds();
+    const bounds = getMediaBounds();
     if (!bounds) return;
 
-    const { container: containerRect, image: imageRect } = bounds;
+    const { container: containerRect, media: mediaRect } = bounds;
 
     const cursorX = clientX - containerRect.left;
     const cursorY = clientY - containerRect.top;
 
-    const imageCenterX =
-      imageRect.left + imageRect.width / 2 - containerRect.left;
-    const imageCenterY =
-      imageRect.top + imageRect.height / 2 - containerRect.top;
+    const mediaCenterX =
+      mediaRect.left + mediaRect.width / 2 - containerRect.left;
+    const mediaCenterY =
+      mediaRect.top + mediaRect.height / 2 - containerRect.top;
 
-    const offsetX = cursorX - imageCenterX;
-    const offsetY = cursorY - imageCenterY;
+    const offsetX = cursorX - mediaCenterX;
+    const offsetY = cursorY - mediaCenterY;
 
-    const zoomFactor = newZoom / zoom;
+    const zoomFactorChange = newZoom / zoom;
 
     const strength = 1.2;
-    translation.x -= offsetX * (zoomFactor - 1) * strength;
-    translation.y -= offsetY * (zoomFactor - 1) * strength;
+    translation.x -= offsetX * (zoomFactorChange - 1) * strength;
+    translation.y -= offsetY * (zoomFactorChange - 1) * strength;
 
     zoom = newZoom;
   }
 
   function doWheelZoom(e: WheelEvent) {
+    if (!selectedFile || selectedFile.isDir) return;
+
     e.preventDefault();
 
-    const zoomStep = 0.1;
+    const zoomStep = 5;
     let newZoom: number;
 
     if (e.deltaY < 0) {
       newZoom = Math.min(zoom + zoomStep, MAX_ZOOM);
     } else {
-      newZoom = Math.max(zoom - zoomStep, 0.1);
+      newZoom = Math.max(zoom - zoomStep, 5);
     }
 
     zoomAtPoint(newZoom, e.clientX, e.clientY);
@@ -183,6 +199,8 @@
     const k = e.key.toLowerCase();
     if (k === "f") {
       toggleFullscreen(container);
+    } else if (k === "l") {
+      lockControls = !lockControls;
     } else if (k === "q") {
       rotate(-90);
     } else if (k === "e") {
@@ -190,28 +208,31 @@
     } else if (k === "z") {
       resetZoom();
     } else if (k === "x") {
-      zoom = Math.max(zoom - 0.1, 0.1);
+      zoom = Math.max(zoom - 5, 5);
     } else if (k === "c") {
-      zoom = Math.min(zoom + 0.1, MAX_ZOOM);
+      zoom = Math.min(zoom + 5, MAX_ZOOM);
     } else if (k === "w") {
-      translation.y += zoom * 16;
+      translation.y += zoomFactor * 16;
     } else if (k === "a") {
-      translation.x += zoom * 16;
+      translation.x += zoomFactor * 16;
     } else if (k === "s") {
-      translation.y -= zoom * 16;
+      translation.y -= zoomFactor * 16;
     } else if (k === "d") {
-      translation.x -= zoom * 16;
+      translation.x -= zoomFactor * 16;
     } else if (k === "r") {
-      zoom = 1;
+      zoom = 100;
       translation = { x: 0, y: 0 };
-    } else if (k === "?") {
+    } else if (k === "h") {
       showShortcuts = !showShortcuts;
-    } else if (e.key === "ArrowLeft") {
+    } else if (e.key === "Escape") {
+      if (selectedFile?.parent?.path) navigate(selectedFile.parent.path);
+    }
+
+    if (e.shiftKey) return true;
+    if (e.key === "ArrowLeft") {
       navToPrevFile();
     } else if (e.key === "ArrowRight") {
       navToNextFile();
-    } else if (e.key === "Escape") {
-      if (selectedFile?.parent?.path) navigate(selectedFile.parent.path);
     } else {
       return true;
     }
@@ -227,11 +248,11 @@
 
 {#if selectedFile && !selectedFile.isDir}
   <section
+    class={`gallery ${selectedFile.type}`}
+    class:hidden-ctrls={!lockControls && !ctrlsVisible}
     bind:this={container}
     role="dialog"
     tabindex="0"
-    class={`gallery ${selectedFile.type}`}
-    class:hidden-ctrls={!lockControls && !ctrlsVisible}
     onwheel={doWheelZoom}
     onpointerdown={(e) => e.button === 1 && (isDragging = true)}
     onpointermove={(e) => {
@@ -240,83 +261,128 @@
     }}
     onpointerenter={showControls}
     onpointerleave={() => (ctrlsVisible = false)}
-    ondblclick={() => toggleFullscreen(container)}
+    ondblclick={(e) => {
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.closest("button, input") &&
+        !e.target.classList.contains("play")
+      ) {
+        return;
+      }
+      toggleFullscreen(container);
+    }}
   >
     <header>
-      <h1 class="title">{selectedFile.name}</h1>
+      <h1>{selectedFile.name}</h1>
+      <span class="control horizontal">
+        <strong>{zoom}%</strong>
+        <button
+          class="icon"
+          title="Reset Zoom"
+          onclick={resetZoom}
+          onkeydown={disableSpace}></button
+        >
+        <RangeInput
+          min={1}
+          max={MAX_ZOOM}
+          bind:value={zoom}
+          step={1}
+          formatter={(v) => `${Math.round(v)}%`}
+        />
+      </span>
       <button
-        class="icon no-color"
-        onclick={() => navigate(selectedFile!.parent!.path)}
-      >
-        
-      </button>
-    </header>
-    <footer>
-      <button
-        class="control icon"
-        title="Keyboard Shortcuts"
-        onclick={() => (showShortcuts = !showShortcuts)}
-      >
-        ?
-      </button>
-      <button
-        class="control icon"
+        class="icon"
         title="Lock Controls"
         onclick={() => (lockControls = !lockControls)}
+        onkeydown={disableSpace}
       >
         {lockControls ? "" : ""}
       </button>
       <button
-        class="control icon"
+        class="icon"
         title="Rotate Right"
         onclick={() => rotate(90)}
+        onkeydown={disableSpace}
       >
         
       </button>
       <button
-        class="control icon"
+        class="icon"
         title="Rotate Left"
         onclick={() => rotate(-90)}
+        onkeydown={disableSpace}
       >
         
       </button>
-      <button class="control icon" title="Prev File" onclick={navToPrevFile}>
+      <button
+        class="icon"
+        title="Prev File"
+        onclick={navToPrevFile}
+        onkeydown={disableSpace}
+      >
         
       </button>
-      <button class="control icon" title="Next File" onclick={navToNextFile}>
+      <button
+        class="icon"
+        title="Next File"
+        onclick={navToNextFile}
+        onkeydown={disableSpace}
+      >
         
       </button>
-      <span class="control">
-        <strong>{percentify(zoom)}</strong>
-        <button class="icon" title="Reset Zoom" onclick={resetZoom}>  </button>
-        <RangeInput
-          min={0.1}
-          max={MAX_ZOOM}
-          bind:value={zoom}
-          step={0.1}
-          onKeyDown={(e) => e.preventDefault()}
-        />
-      </span>
       <button
-        class="control icon"
+        class="icon"
+        title="Keyboard Shortcuts"
+        onclick={() => (showShortcuts = !showShortcuts)}
+        onkeydown={disableSpace}
+      >
+        ?
+      </button>
+      <button
+        class="icon no-color"
+        onclick={() => navigate(selectedFile!.parent!.path)}
+        onkeydown={disableSpace}
+      >
+        
+      </button>
+    </header>
+    {#snippet controlsSnippet()}
+      <button
+        class="icon"
         title="Toggle Fullscreen"
         onclick={() => toggleFullscreen(container)}
+        onkeydown={disableSpace}
       >
         {isFullscreen ? "" : ""}
       </button>
-    </footer>
-    <img
-      bind:this={imageElement}
-      class="src"
-      src={selectedFile.src}
-      class:horizontal={rotation === 90 || rotation === 270}
-      style:rotate={`${rotation}deg`}
-      style:scale={zoom}
-      style:translate={`${translation.x}px ${translation.y}px`}
-      style:object-fit="contain"
-      alt={selectedFile.name}
-      onloadedmetadata={resetAll}
-    />
+    {/snippet}
+    {#if selectedFile.type === "video"}
+      <VideoControls
+        bind:video={videoElement}
+        {zoomFactor}
+        {rotation}
+        src={selectedFile.src}
+        {translation}
+      >
+        {#snippet controls()}{@render controlsSnippet()}{/snippet}
+      </VideoControls>
+    {:else if selectedFile.type === "image"}
+      <img
+        bind:this={imageElement}
+        class="src"
+        src={selectedFile.src}
+        class:horizontal={rotation === 90 || rotation === 270}
+        style:rotate={`${rotation}deg`}
+        style:scale={zoomFactor}
+        style:translate={`${translation.x}px ${translation.y}px`}
+        style:object-fit="contain"
+        alt={selectedFile.name}
+        onloadedmetadata={resetAll}
+      />
+      <footer>
+        {@render controlsSnippet()}
+      </footer>
+    {/if}
     {#if showShortcuts}
       <div
         role="dialog"
