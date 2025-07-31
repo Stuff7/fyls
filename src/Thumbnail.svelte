@@ -60,7 +60,7 @@
 
   $effect(() => {
     size;
-    if (!shown) return;
+    if (!shown || ftype !== "video") return;
 
     (async () => {
       while (processing) {

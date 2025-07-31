@@ -33,7 +33,7 @@
     })(),
   );
 
-  let currDir = $derived<DirInfo>(rootDir);
+  let currDir = $state<DirInfo>(rootDir);
   let selectedFile = $derived(findRoute(rootPath, rootDir));
 
   $effect(() => {
@@ -46,13 +46,33 @@
     rootPath = this.value.startsWith("file://") ? value : `file://${value}`;
   }
 
+  function findCurrDir(currDirPath: string, d = rootDir.files) {
+    for (const f of d) {
+      if (!f.isDir) continue;
+
+      if (f.path === currDirPath) {
+        currDir = f;
+        break;
+      }
+
+      if (currDirPath.startsWith(f.path)) {
+        findCurrDir(currDirPath, f.files);
+        break;
+      }
+    }
+  }
+
   function updateRootDir(this: HTMLInputElement) {
     if (this.files) {
       const paths = Array.from(this.files!).map(
         (file) => file.webkitRelativePath,
       );
+
+      const currDirPath = currDir.path;
       rootDir.files.length = 0;
+
       parseFiles(rootDir, "", ...paths);
+      findCurrDir(currDirPath);
     }
   }
 </script>
