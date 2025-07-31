@@ -14,6 +14,7 @@
 
   type Props = {
     src: string;
+    paused: boolean;
     rotation: number;
     zoomFactor: number;
     translation: { x: number; y: number };
@@ -23,6 +24,7 @@
 
   let {
     src,
+    paused = $bindable(),
     rotation,
     zoomFactor,
     translation,
@@ -30,9 +32,8 @@
     video = $bindable(),
   }: Props = $props();
 
-  let paused = $state(true);
   let duration = $state(0);
-  let progress = $state(0);
+  let progress = $state(1 / 10000);
   let volumeFactor = $state(1);
   let muted = $state(false);
   let speedFactor = $state(1);
@@ -81,8 +82,6 @@
     if (slice.step === 1 && (progress > slice.end || progress < slice.start)) {
       progress = slice.start;
     }
-    // Workaround for native video loop not working sometimes
-    if (loop && progress >= duration - 0.8) progress = 0;
   }
 
   function keyListener(e: KeyboardEvent) {
@@ -122,7 +121,6 @@
   class="src"
   bind:this={video}
   {src}
-  {loop}
   class:horizontal={rotation === 90 || rotation === 270}
   style:rotate={`${rotation}deg`}
   style:scale={zoomFactor}
@@ -135,6 +133,14 @@
   bind:paused
   bind:volume={volumeFactor}
   bind:muted
+  autoplay={!paused}
+  onended={() => {
+    // Loop video programmatically, cannot rely on the video element `loop` attribute because
+    // Firefox doesn't handle mismatching audio/video duration well in that situation
+    if (!loop) return;
+    progress = 0;
+    paused = false;
+  }}
 >
   <track kind="captions" />
 </video>

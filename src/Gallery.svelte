@@ -28,6 +28,7 @@
   let imageElement = $state<HTMLImageElement>();
   let videoElement = $state<HTMLVideoElement>();
 
+  let paused = $state(true);
   let translation = $state({ x: 0, y: 0 });
   let rotation = $state(0);
   let zoom = $state(100);
@@ -359,6 +360,7 @@
     {#if selectedFile.type === "video"}
       <VideoControls
         bind:video={videoElement}
+        bind:paused
         {zoomFactor}
         {rotation}
         src={selectedFile.src}

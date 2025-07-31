@@ -40,7 +40,12 @@
   import type { FileType } from "./types";
   import { timestamp } from "./utils";
 
-  const { shown = false, path = "", ftype = "other" as FileType } = $props();
+  const {
+    shown = false,
+    path = "",
+    ftype = "other" as FileType,
+    size = 200,
+  } = $props();
   let canvas = $state<HTMLCanvasElement>();
   let error = $state("");
   let duration = $state(-1);
@@ -54,6 +59,7 @@
   onDestroy(() => video.removeEventListener("loadedmetadata", getMeta));
 
   $effect(() => {
+    size;
     if (!shown) return;
 
     (async () => {
@@ -74,7 +80,7 @@
           return;
         }
 
-        canvas.width = canvas.parentElement?.offsetWidth || 200;
+        canvas.width = canvas.parentElement?.offsetWidth || size;
 
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -112,7 +118,7 @@
   <div
     class="
       relative
-      w-[200px] h-[200px] mx-auto
+      w-full aspect-square mx-auto
       rounded-xl
       bg-white dark:bg-zinc-800/50
       border border-zinc-300/50 dark:border-zinc-700/50
@@ -141,8 +147,8 @@
         bind:this={canvas}
         class="max-w-full max-h-full"
         class:invisible={error}
-        height="200"
-        width="200"
+        width={size}
+        height={size}
       ></canvas>
       <strong
         class="absolute z-1 bottom-2 right-2 bg-zinc-950/55 rounded-sm px-2 py-1"

@@ -89,6 +89,47 @@ export function parseFiles(
   }
 }
 
+export function serializeTree(root: DirInfo): string {
+  return JSON.stringify(root, function (key, value) {
+    if (key === "parent") return undefined;
+    if (
+      value &&
+      typeof value === "object" &&
+      "path" in value &&
+      "parent" in value &&
+      value.parent
+    ) {
+      return {
+        ...value,
+        parentPath: value.parent.path,
+      };
+    }
+    return value;
+  });
+}
+
+export function deserializeTree(json: string): DirInfo {
+  const root = JSON.parse(json) as DirInfo;
+
+  const pathMap = new Map<string, FileInfo>();
+
+  function restore(node: FileInfo, parent?: DirInfo) {
+    node.parent = parent;
+    pathMap.set(node.path, node);
+
+    if (node.isDir) {
+      const dir = node as DirInfo;
+      for (const child of dir.files) {
+        restore(child, dir);
+      }
+    }
+  }
+
+  restore(root);
+
+  return root;
+}
+
 export function getNameFromPath(path: string) {
   const idx = path.lastIndexOf("/");
   if (idx === -1) {

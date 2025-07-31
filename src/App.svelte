@@ -3,28 +3,42 @@
   import Gallery from "./Gallery.svelte";
   import type { DirInfo } from "./types";
   import {
+    deserializeTree,
     FILES_KEY,
     findRoute,
     localStorageGet,
     localStorageSet,
     navigate,
     parseFiles,
+    serializeTree,
   } from "./utils";
 
   let rootPath = $state(localStorageGet("rootDir", (v) => v || ""));
   $effect(() => localStorageSet("rootDir", rootPath));
 
-  const rootDir = $state(
+  const rootDir = $state<DirInfo>(
     (() => {
-      const root: DirInfo = { name: "Root", path: "", isDir: true, files: [] };
-      const paths = JSON.parse(localStorage.getItem(FILES_KEY) || "[]");
-      parseFiles(root, "", ...paths);
-      return root;
+      const raw = localStorage.getItem(FILES_KEY);
+
+      if (!raw) {
+        return {
+          name: "Root",
+          path: "",
+          isDir: true,
+          files: [],
+        };
+      }
+
+      return deserializeTree(raw);
     })(),
   );
 
   let currDir = $derived<DirInfo>(rootDir);
   let selectedFile = $derived(findRoute(rootPath, rootDir));
+
+  $effect(() => {
+    localStorage.setItem(FILES_KEY, serializeTree(rootDir));
+  });
 
   function updateRootPath(this: HTMLInputElement) {
     if (!this.value) return (rootPath = this.value);
@@ -37,7 +51,6 @@
       const paths = Array.from(this.files!).map(
         (file) => file.webkitRelativePath,
       );
-      localStorage.setItem(FILES_KEY, JSON.stringify(paths));
       rootDir.files.length = 0;
       parseFiles(rootDir, "", ...paths);
     }

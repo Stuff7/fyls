@@ -2,12 +2,12 @@
 
 html,
 body {
-  @apply text-sm accent-amber-300 bg-zinc-900 text-zinc-50 overflow-hidden! fixed h-dvh w-dvw;
+  @apply text-sm accent-amber-300 bg-zinc-900 text-zinc-50 fixed h-dvh w-dvw overflow-auto;
   background: linear-gradient(to bottom right, #0f4840, #4f2f4f, #091111 120%);
 }
 
-#app {
-  @apply overflow-auto h-dvh w-dvw;
+* {
+  scrollbar-color: #fcd34d #09090b;
 }
 
 @font-face {
@@ -70,17 +70,6 @@ textarea {
   @apply px-2 rounded-xs bg-zinc-900 text-zinc-50;
 }
 
-@utility scrollbar-hidden {
-  /* Firefox */
-  scrollbar-width: none;
-  /* IE 10+ */
-  -ms-overflow-style: none;
-  /* WebKit (Chrome, Safari) */
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 @utility rounded-square {
   @apply px-2 rounded-sm h-full aspect-square text-center flex items-center justify-center;
 }
@@ -126,14 +115,38 @@ textarea {
 }
 
 @utility explorer {
-  @apply grid gap-4 p-4 pt-0 grid-cols-[repeat(auto-fill,minmax(200px,1fr))];
+  @apply grid p-4 pt-0;
 
-  > header {
-    @apply grid grid-cols-[repeat(3,max-content)] items-center gap-4 px-6 py-4 bg-zinc-900/50 -mx-4 col-span-full;
+  &.list-view {
+    @apply grid-flow-row;
   }
 
-  > header > button {
+  &:not(.list-view) {
+    @apply gap-4 grid-cols-[repeat(auto-fill,minmax(var(--thumbnail-size),1fr))] items-start;
+  }
+
+  > header {
+    @apply flex items-center gap-4 px-6 py-4 bg-zinc-900/50 -mx-4 col-span-full sticky top-0 z-10;
+  }
+
+  &.list-view > button {
+    @apply text-left flex gap-2 items-center px-4 py-3 text-base;
+
+    > i {
+      @apply text-amber-300;
+    }
+
+    &:hover {
+      @apply bg-black/50;
+    }
+  }
+
+  header button {
     @apply grid grid-cols-[auto_1fr] items-center gap-4;
+  }
+
+  .range-input {
+    @apply w-32;
   }
 
   i {
@@ -144,11 +157,11 @@ textarea {
     @apply text-2xl col-span-2;
   }
 
-  > .file {
+  &:not(.list-view) > .file {
     @apply overflow-hidden text-ellipsis cursor-pointer flex flex-col justify-between gap-2 p-0;
 
     > i {
-      @apply text-[12rem];
+      font-size: calc(var(--thumbnail-size) / 5 * 4);
     }
 
     &.unknown > i::after {
@@ -160,7 +173,7 @@ textarea {
     }
   }
 
-  > .directory {
+  &:not(.list-view) > .directory {
     @apply flex flex-col justify-between gap-2 p-0;
 
     > i {
