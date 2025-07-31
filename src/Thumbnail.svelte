@@ -127,7 +127,7 @@
       flex items-center justify-center
       transition
       duration-50
-      hover:scale-[1.05]
+      hover:scale-[1.02]
       hover:shadow-2xl dark:hover:shadow-black/70
       cursor-pointer
       select-none

@@ -126,7 +126,7 @@ textarea {
   }
 
   > header {
-    @apply flex items-center gap-4 px-6 py-4 bg-zinc-900/50 -mx-4 col-span-full sticky top-0 z-10;
+    @apply flex items-center gap-4 px-6 py-4 bg-zinc-900/50 -mx-4 col-span-full sticky top-0;
   }
 
   &.list-view > button {

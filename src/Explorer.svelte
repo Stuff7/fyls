@@ -80,7 +80,7 @@
   class:list-view={viewStyle === "list"}
   style:--thumbnail-size={`${thumbnailSize}px`}
 >
-  <header>
+  <header class:z-10={selectedFile.isDir}>
     <button
       onclick={() => dir.parent && navigate(dir.parent.path)}
       disabled={!dir.parent}
