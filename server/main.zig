@@ -1,46 +1,159 @@
-//! By convention, main.zig is where your main function lives in the case that
-//! you are building an executable. If you are making a library, the convention
-//! is to delete this file and start with root.zig instead.
+const std = @import("std");
+const net = std.net;
+const http = std.http;
+const fs = std.fs;
+const print = std.debug.print;
+
+const BUFFER_SIZE = 4096;
+const PUBLIC_DIR = "dist";
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // Don't forget to flush!
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "use other module" {
-    try std.testing.expectEqual(@as(i32, 150), lib.add(100, 50));
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
+    const addr = net.Address.parseIp4("127.0.0.1", 9090) catch |err| {
+        print("An error occurred while resolving the IP address: {}\n", .{err});
+        return;
     };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
+
+    var server = try addr.listen(.{});
+    print("Server listening on http://127.0.0.1:9090\n", .{});
+    print("Serving files from './{s}' directory\n", .{PUBLIC_DIR});
+
+    startServer(&server, allocator);
 }
 
-const std = @import("std");
+fn startServer(server: *net.Server, allocator: std.mem.Allocator) void {
+    while (true) {
+        var connection = server.accept() catch |err| {
+            print("Connection to client interrupted: {}\n", .{err});
+            continue;
+        };
+        defer connection.stream.close();
 
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("fyls_lib");
+        var read_buffer: [BUFFER_SIZE]u8 = undefined;
+        var http_server = http.Server.init(connection, &read_buffer);
+        var request = http_server.receiveHead() catch |err| {
+            print("Could not read head: {}\n", .{err});
+            continue;
+        };
+
+        handleRequest(&request, allocator) catch |err| {
+            print("Could not handle request: {}\n", .{err});
+            continue;
+        };
+    }
+}
+
+fn handleRequest(request: *http.Server.Request, allocator: std.mem.Allocator) !void {
+    const target = request.head.target;
+    print("Handling request for {s}\n", .{target});
+
+    var path = target;
+    if (std.mem.indexOf(u8, target, "?")) |query_start| {
+        path = target[0..query_start];
+    }
+
+    if (std.mem.eql(u8, path, "/")) {
+        path = "/index.html";
+    }
+
+    const file_path = try std.fmt.allocPrint(allocator, "{s}{s}", .{ PUBLIC_DIR, path });
+    defer allocator.free(file_path);
+
+    // Security check: prevent directory traversal
+    if (std.mem.indexOf(u8, path, "..") != null) {
+        try sendErrorResponse(request, .forbidden, "403 Forbidden");
+        return;
+    }
+
+    serveFile(request, file_path, allocator) catch |err| switch (err) {
+        error.FileNotFound => {
+            try sendErrorResponse(request, .not_found, "404 Not Found");
+        },
+        error.IsDir => {
+            const index_path = try std.fmt.allocPrint(allocator, "{s}/index.html", .{file_path});
+            defer allocator.free(index_path);
+
+            serveFile(request, index_path, allocator) catch {
+                try sendErrorResponse(request, .forbidden, "403 Forbidden - Directory listing not allowed");
+            };
+        },
+        else => {
+            try sendErrorResponse(request, .internal_server_error, "500 Internal Server Error");
+        },
+    };
+}
+
+fn serveFile(request: *http.Server.Request, file_path: []const u8, allocator: std.mem.Allocator) !void {
+    const file = fs.cwd().openFile(file_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => return error.FileNotFound,
+        error.IsDir => return error.IsDir,
+        else => return err,
+    };
+    defer file.close();
+
+    const file_size = try file.getEndPos();
+    const content = try allocator.alloc(u8, file_size);
+    defer allocator.free(content);
+
+    _ = try file.readAll(content);
+
+    const content_type = getContentType(file_path);
+
+    try request.respond(content, .{
+        .extra_headers = &.{
+            .{ .name = "content-type", .value = content_type },
+            .{ .name = "cache-control", .value = "public, max-age=3600" },
+        },
+    });
+
+    print("Served {s} ({} bytes) as {s}\n", .{ file_path, file_size, content_type });
+}
+
+fn sendErrorResponse(request: *http.Server.Request, status: http.Status, message: []const u8) !void {
+    const html_response = std.fmt.allocPrint(std.heap.page_allocator, "<!DOCTYPE html><html><head><title>{s}</title></head><body><h1>{s}</h1></body></html>", .{ message, message }) catch return;
+    defer std.heap.page_allocator.free(html_response);
+
+    try request.respond(html_response, .{
+        .status = status,
+        .extra_headers = &.{
+            .{ .name = "content-type", .value = "text/html; charset=utf-8" },
+        },
+    });
+
+    print("Sent error response: {s}\n", .{message});
+}
+
+fn getContentType(file_path: []const u8) []const u8 {
+    if (std.mem.endsWith(u8, file_path, ".html") or std.mem.endsWith(u8, file_path, ".htm")) {
+        return "text/html; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".css")) {
+        return "text/css; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".js")) {
+        return "application/javascript; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".json")) {
+        return "application/json; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".png")) {
+        return "image/png";
+    } else if (std.mem.endsWith(u8, file_path, ".jpg") or std.mem.endsWith(u8, file_path, ".jpeg")) {
+        return "image/jpeg";
+    } else if (std.mem.endsWith(u8, file_path, ".gif")) {
+        return "image/gif";
+    } else if (std.mem.endsWith(u8, file_path, ".svg")) {
+        return "image/svg+xml";
+    } else if (std.mem.endsWith(u8, file_path, ".ico")) {
+        return "image/x-icon";
+    } else if (std.mem.endsWith(u8, file_path, ".webp")) {
+        return "image/webp";
+    } else if (std.mem.endsWith(u8, file_path, ".txt")) {
+        return "text/plain; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".xml")) {
+        return "application/xml; charset=utf-8";
+    } else if (std.mem.endsWith(u8, file_path, ".pdf")) {
+        return "application/pdf";
+    } else {
+        return "application/octet-stream";
+    }
+}

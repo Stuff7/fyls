@@ -2,11 +2,11 @@
     .name = .fyls,
     .version = "0.0.0",
     .fingerprint = 0x646d20314e86f9a2,
-    .minimum_zig_version = "0.15.0-dev.565+8e72a2528",
+    .minimum_zig_version = "0.15.0-dev.1283+1fcaf90dd",
     .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",
-        "src",
+        "server",
     },
 }
