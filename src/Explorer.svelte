@@ -10,6 +10,8 @@
   } from "./utils";
   import type { DirInfo, FileDetails, FileInfo } from "./types";
   import RangeInput from "./RangeInput.svelte";
+  import { SvelteSet } from "svelte/reactivity";
+  import { untrack } from "svelte";
 
   type Props = {
     root: string;
@@ -30,8 +32,70 @@
     localStorageGet("explorer-view-style", (v) => v as ViewStyle) || "grid",
   );
   let numCols = $state(localStorageGet("explorer-cols", Number) || 8);
+  let selecting = $state(false);
+  let selected = new SvelteSet<string>();
 
+  const SORT = {
+    alphaUp: "",
+    alphaDown: "",
+  };
+  let sort = $state<keyof typeof SORT>("alphaUp");
+
+  const sortedFiles = $derived.by(() => {
+    switch (sort) {
+      case "alphaUp":
+        return dir.files;
+      case "alphaDown":
+        return dir.files.toSorted((a, b) => b.path.localeCompare(a.path));
+    }
+  });
   const thumbnailSize = $derived(window.innerWidth / numCols - 30);
+
+  function changeSort() {
+    sort = sort === "alphaDown" ? "alphaUp" : "alphaDown";
+  }
+
+  const SELECT_TAG = {
+    start: "Start selection",
+    end: "End selection",
+    copied: "Paths copied",
+  };
+
+  let selectTimeout = -1;
+  let selectText = $state(SELECT_TAG.start);
+
+  $effect(() => {
+    selecting;
+    untrack(() => {
+      clearTimeout(selectTimeout);
+      if (selecting) selectText = SELECT_TAG.end;
+      else {
+        selectText = selected.size > 0 ? SELECT_TAG.copied : SELECT_TAG.start;
+        selectTimeout = window.setTimeout(() => {
+          selectText = SELECT_TAG.start;
+        }, 2e3);
+        selected.clear();
+      }
+    });
+  });
+
+  function toggleSelect() {
+    selecting = !selecting;
+    if (!selecting && selected.size > 0) {
+      navigator.clipboard.writeText(
+        [...selected]
+          .map((path) => `${root.slice("file://".length)}/${path}`)
+          .join(" "),
+      );
+    }
+  }
+
+  function onFileSelect(path: string) {
+    if (!selecting) return navigate(path);
+
+    if (selected.has(path)) selected.delete(path);
+    else selected.add(path);
+  }
 
   $effect(() => {
     dir.files.sort((a, b) => {
@@ -91,6 +155,13 @@
     <strong class="title">{dir.path}</strong>
     <em>{dir.files.length} files</em>
     <div style:flex={1}></div>
+    <button onclick={changeSort} title={sort} class="text-xl">
+      <i>{SORT[sort]}</i>
+    </button>
+    <button onclick={toggleSelect} class:bg-teal-500!={selecting}>
+      <i></i>{selectText}
+      {selecting ? `(${selected.size})` : ""}
+    </button>
     {#if viewStyle === "grid"}
       <strong>{numCols} columns</strong>
       <RangeInput
@@ -128,12 +199,14 @@
       {@render displayOption("", "list")}
     </fieldset>
   </header>
-  {#each dir.files as file (file.path)}
+  {#each sortedFiles as file (file.path)}
     <button
       class="file compact no-color"
       class:directory={file.isDir}
       class:unknown={isFile(file)}
-      onclick={() => navigate(file.path)}
+      class:bg-zinc-800={selected.has(file.path)}
+      class:outline-dashed={selecting}
+      onclick={() => onFileSelect(file.path)}
       onkeydown={disableSpace}
     >
       {#if viewStyle === "grid"}
