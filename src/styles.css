@@ -142,7 +142,7 @@ textarea {
   }
 
   header button {
-    @apply grid grid-cols-[auto_1fr] items-center gap-4;
+    @apply flex items-center gap-2;
   }
 
   .range-input {
